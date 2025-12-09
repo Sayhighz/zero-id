@@ -64,13 +64,13 @@ graph TD
         Issuer["Mock Issuer"]
     end
 
-    Issuer -->|1. Issue Credential| Knox
-    Verifier -->|2. Request Proof (QR)| UI
-    UI -->|3. Liveness Check| Face
-    Face -->|4. Unlock Key| Knox
-    Knox -->|5. Sign Inputs| ZK
-    ZK -->|6. Generate ZK Proof| UI
-    UI -->|7. Send Proof Only| Verifier
+    Issuer -->|"1. Issue Credential"| Knox
+    Verifier -->|"2. Request Proof (QR)"| UI
+    UI -->|"3. Liveness Check"| Face
+    Face -->|"4. Unlock Key"| Knox
+    Knox -->|"5. Sign Inputs"| ZK
+    ZK -->|"6. Generate ZK Proof"| UI
+    UI -->|"7. Send Proof Only"| Verifier
 ````
 
 -----
