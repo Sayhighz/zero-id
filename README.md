@@ -53,15 +53,15 @@ Our architecture ensures that **no raw data is ever transmitted** during the ver
 ```mermaid
 graph TD
     subgraph "Samsung Device (User)"
-        UI[Mobile App (Kotlin/Compose)]
-        ZK[ZK Prover (snarkjs/WebView)]
-        Knox[(Samsung Knox Vault)]
-        Face[AINU Liveness Check]
+        UI["Mobile App (Kotlin/Compose)"]
+        ZK["ZK Prover (snarkjs/WebView)"]
+        Knox[("Samsung Knox Vault")]
+        Face["AINU Liveness Check"]
     end
 
     subgraph "External World"
-        Verifier[Verifier Node.js API]
-        Issuer[Mock Issuer]
+        Verifier["Verifier Node.js API"]
+        Issuer["Mock Issuer"]
     end
 
     Issuer -->|1. Issue Credential| Knox
@@ -143,7 +143,7 @@ To run the prototype locally:
 
   - [x] **Phase 0:** Architecture Design & Feasibility Study
   - [x] **Phase 1:** UI/UX Design (Figma) & Circuit Logic
-  - [ ] **Phase 2 (Hackathon 48h):** Knox Integration & End-to-End Flow
+  - [ ] **Phase 2 (Hackathon):** Knox Integration & End-to-End Flow
   - [ ] **Phase 3:** Production-ready API for KBTG Ecosystem
 
 -----
