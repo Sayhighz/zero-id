@@ -1,4 +1,4 @@
-# ZeroID (formerly TrustChain ID)
+# ZeroID
 
 ![Banner](https://img.shields.io/badge/Status-Prototype-orange?style=for-the-badge)
 ![Tech](https://img.shields.io/badge/Tech-Zero_Knowledge_Proofs-blueviolet?style=for-the-badge)
