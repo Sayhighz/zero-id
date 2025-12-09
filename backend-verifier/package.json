@@ -1,0 +1,11 @@
+{
+  "name": "zeroid-verifier",
+  "version": "0.1.0",
+  "main": "server.js",
+  "dependencies": {
+    "express": "^4.18.2",
+    "snarkjs": "^0.7.0",
+    "cors": "^2.8.5",
+    "body-parser": "^1.20.2"
+  }
+}
