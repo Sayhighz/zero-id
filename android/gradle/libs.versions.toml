@@ -39,11 +39,14 @@ androidx_test_ext_junit = { module = "androidx.test.ext:junit", version.ref = "a
 androidx_test_ext_junit_ktx = { module = "androidx.test.ext:junit-ktx", version.ref = "androidx_test_ext" }
 compose-bom = { module = "androidx.compose:compose-bom", version.ref = "compose-bom" }
 compose_material = { module = "androidx.compose.material:material" }
+compose_material_icons_core = { module = "androidx.compose.material:material-icons-core" }
+compose_material_icons_extended = { module = "androidx.compose.material:material-icons-extended" }
 compose_foundation = { module = "androidx.compose.foundation:foundation" }
 compose_ui = { module = "androidx.compose.ui:ui" }
 compose_ui_tooling = { module = "androidx.compose.ui:ui-tooling" }
 compose_ui_test_junit4 = { module = "androidx.compose.ui:ui-test-junit4" }
 compose_ui_test_manifest = { module = "androidx.compose.ui:ui-test-manifest" }
+compose_material3 = { module = "androidx.compose.material3:material3" }
 detekt_formatting = { module = "io.gitlab.arturbosch.detekt:detekt-formatting", version.ref = "detekt" }
 espresso_core = { module = "androidx.test.espresso:espresso-core", version.ref = "espresso_core" }
 gson = { module = "com.google.code.gson:gson", version.ref = "gson" }

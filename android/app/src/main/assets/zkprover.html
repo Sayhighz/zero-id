@@ -4,49 +4,93 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ZK Prover</title>
-    <script src="https://cdn.jsdelivr.net/npm/snarkjs@latest/build/snarkjs.min.js"></script>
-    <script src="zkp/witness_calculator.js"></script>
 </head>
 <body>
     <h3>ZK Proof Generator</h3>
     <div id="status">Initializing...</div>
 
     <script>
-        console.log('ZKProver HTML loaded');
+        console.log('=== ZKProver HTML loaded ===');
 
         // Global state
         let wasmBuffer = null;
-        let witnessCalculator = null;
         let isInitialized = false;
+        let initStartTime = Date.now();
+
+        // Check Android interface
+        console.log('Android interface available:', typeof Android !== 'undefined');
+
+        // Load witness calculator first
+        console.log('Loading witness_calculator.js...');
+        const witnessScript = document.createElement('script');
+        witnessScript.src = 'zkp/witness_calculator.js';
+        witnessScript.onerror = function() {
+            console.error('Failed to load witness_calculator.js');
+            document.getElementById('status').textContent = 'Failed to load witness calculator';
+            if (typeof Android !== 'undefined') {
+                Android.onWasmLoaded(false);
+            }
+        };
+        witnessScript.onload = function() {
+            console.log('witness_calculator.js loaded successfully');
+            console.log('WitnessCalculator available:', typeof WitnessCalculator !== 'undefined');
+
+            // After witness calculator loads, load SnarkJS (optional for now)
+            // Then initialize WASM
+            setTimeout(initializeWasm, 100);
+        };
+        document.head.appendChild(witnessScript);
 
         // Initialize WASM file
         async function initializeWasm() {
             try {
-                console.log('Loading WASM file...');
+                console.log('=== Starting WASM initialization ===');
+                console.log('Fetching WASM from: zkp/age_check.wasm');
+
                 const response = await fetch('zkp/age_check.wasm');
+                console.log('Fetch response status:', response.status, response.statusText);
 
                 if (!response.ok) {
-                    throw new Error(`Failed to fetch WASM: ${response.statusText}`);
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
 
-                wasmBuffer = await response.arrayBuffer();
-                console.log('WASM loaded successfully, size:', wasmBuffer.byteLength);
+                const blob = await response.blob();
+                console.log('WASM blob received, size:', blob.size, 'bytes');
+
+                wasmBuffer = await blob.arrayBuffer();
+                console.log('WASM ArrayBuffer created, byteLength:', wasmBuffer.byteLength);
+
+                // Verify WitnessCalculator is available
+                if (typeof WitnessCalculator === 'undefined') {
+                    throw new Error('WitnessCalculator not loaded');
+                }
 
                 document.getElementById('status').textContent = 'WASM loaded successfully';
                 isInitialized = true;
 
+                const initTime = Date.now() - initStartTime;
+                console.log(`=== WASM initialized successfully in ${initTime}ms ===`);
+
                 // Notify Android that initialization is complete
                 if (typeof Android !== 'undefined') {
+                    console.log('Calling Android.onWasmLoaded(true)');
                     Android.onWasmLoaded(true);
                 } else {
-                    console.warn('Android interface not found');
+                    console.warn('Android interface not found!');
                 }
             } catch (error) {
-                console.error('Failed to load WASM:', error);
-                document.getElementById('status').textContent = 'Failed to load WASM: ' + error.message;
+                console.error('=== WASM initialization failed ===');
+                console.error('Error type:', error.constructor.name);
+                console.error('Error message:', error.message);
+                console.error('Error stack:', error.stack);
+
+                document.getElementById('status').textContent = 'Failed: ' + error.message;
 
                 if (typeof Android !== 'undefined') {
+                    console.log('Calling Android.onWasmLoaded(false)');
                     Android.onWasmLoaded(false);
+                } else {
+                    console.error('Cannot notify Android - interface not available');
                 }
             }
         }
@@ -54,7 +98,8 @@
         // Generate ZK proof function called from Kotlin
         async function generateProof(birthYear, minAge, currentYear) {
             try {
-                console.log('Starting proof generation...', { birthYear, minAge, currentYear });
+                console.log('=== Starting proof generation ===');
+                console.log('Inputs:', { birthYear, minAge, currentYear });
 
                 if (!isInitialized) {
                     throw new Error('WASM not initialized');
@@ -70,16 +115,13 @@
                 console.log('Circuit input:', input);
 
                 // Calculate witness
-                console.log('Calculating witness...');
+                console.log('Creating witness calculator...');
                 const witnessCalc = await WitnessCalculator(wasmBuffer);
+                console.log('Calculating witness...');
                 const witness = await witnessCalc.calculateWitness(input, false);
+                console.log('Witness calculated successfully');
 
-                console.log('Witness calculated');
-
-                // For now, return a mock proof since we don't have the .zkey file yet
-                // In production, you would load the .zkey and call snarkjs.groth16.prove()
-
-                // Mock proof structure
+                // Mock proof structure (since we don't have .zkey yet)
                 const mockProof = {
                     pi_a: ["1", "2", "1"],
                     pi_b: [["1", "2"], ["1", "2"], ["1", "2"]],
@@ -113,7 +155,10 @@
                 return jsonResult;
 
             } catch (error) {
-                console.error('Proof generation failed:', error);
+                console.error('=== Proof generation failed ===');
+                console.error('Error:', error.message);
+                console.error('Stack:', error.stack);
+
                 const errorResult = {
                     error: error.message || 'Unknown error during proof generation'
                 };
@@ -127,14 +172,10 @@
             }
         }
 
-        // Initialize on page load
-        window.addEventListener('load', () => {
-            console.log('Window loaded, initializing WASM...');
-            initializeWasm();
-        });
-
         // Make generateProof available globally
         window.generateProof = generateProof;
+
+        console.log('=== Setup complete, waiting for scripts to load ===');
     </script>
 </body>
 </html>

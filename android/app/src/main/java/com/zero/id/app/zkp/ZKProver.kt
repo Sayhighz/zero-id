@@ -44,6 +44,10 @@ class ZKProver(private val context: Context) {
             settings.allowFileAccess = true
             settings.allowContentAccess = true
 
+            // Critical: Allow fetch() from file:// URLs
+            settings.allowFileAccessFromFileURLs = true
+            settings.allowUniversalAccessFromFileURLs = true
+
             // Performance optimizations
             settings.cacheMode = android.webkit.WebSettings.LOAD_DEFAULT
             settings.databaseEnabled = true
