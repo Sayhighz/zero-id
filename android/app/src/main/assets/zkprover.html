@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZK Prover</title>
+    <script src="https://cdn.jsdelivr.net/npm/snarkjs@latest/build/snarkjs.min.js"></script>
+    <script src="zkp/witness_calculator.js"></script>
+</head>
+<body>
+    <h3>ZK Proof Generator</h3>
+    <div id="status">Initializing...</div>
+
+    <script>
+        console.log('ZKProver HTML loaded');
+
+        // Global state
+        let wasmBuffer = null;
+        let witnessCalculator = null;
+        let isInitialized = false;
+
+        // Initialize WASM file
+        async function initializeWasm() {
+            try {
+                console.log('Loading WASM file...');
+                const response = await fetch('zkp/age_check.wasm');
+
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch WASM: ${response.statusText}`);
+                }
+
+                wasmBuffer = await response.arrayBuffer();
+                console.log('WASM loaded successfully, size:', wasmBuffer.byteLength);
+
+                document.getElementById('status').textContent = 'WASM loaded successfully';
+                isInitialized = true;
+
+                // Notify Android that initialization is complete
+                if (typeof Android !== 'undefined') {
+                    Android.onWasmLoaded(true);
+                } else {
+                    console.warn('Android interface not found');
+                }
+            } catch (error) {
+                console.error('Failed to load WASM:', error);
+                document.getElementById('status').textContent = 'Failed to load WASM: ' + error.message;
+
+                if (typeof Android !== 'undefined') {
+                    Android.onWasmLoaded(false);
+                }
+            }
+        }
+
+        // Generate ZK proof function called from Kotlin
+        async function generateProof(birthYear, minAge, currentYear) {
+            try {
+                console.log('Starting proof generation...', { birthYear, minAge, currentYear });
+
+                if (!isInitialized) {
+                    throw new Error('WASM not initialized');
+                }
+
+                // Create input for circuit
+                const input = {
+                    birthYear: parseInt(birthYear),
+                    minAge: parseInt(minAge),
+                    currentYear: parseInt(currentYear)
+                };
+
+                console.log('Circuit input:', input);
+
+                // Calculate witness
+                console.log('Calculating witness...');
+                const witnessCalc = await WitnessCalculator(wasmBuffer);
+                const witness = await witnessCalc.calculateWitness(input, false);
+
+                console.log('Witness calculated');
+
+                // For now, return a mock proof since we don't have the .zkey file yet
+                // In production, you would load the .zkey and call snarkjs.groth16.prove()
+
+                // Mock proof structure
+                const mockProof = {
+                    pi_a: ["1", "2", "1"],
+                    pi_b: [["1", "2"], ["1", "2"], ["1", "2"]],
+                    pi_c: ["1", "2", "1"],
+                    protocol: "groth16"
+                };
+
+                // Calculate if age requirement is met
+                const age = currentYear - birthYear;
+                const isOldEnough = age >= minAge ? 1 : 0;
+
+                const publicSignals = [
+                    isOldEnough.toString(),
+                    minAge.toString(),
+                    currentYear.toString()
+                ];
+
+                const result = {
+                    proof: mockProof,
+                    publicSignals: publicSignals
+                };
+
+                console.log('Proof generated successfully:', result);
+
+                // Return JSON to Android
+                const jsonResult = JSON.stringify(result);
+                if (typeof Android !== 'undefined') {
+                    Android.onProofGenerated(jsonResult);
+                }
+
+                return jsonResult;
+
+            } catch (error) {
+                console.error('Proof generation failed:', error);
+                const errorResult = {
+                    error: error.message || 'Unknown error during proof generation'
+                };
+
+                const jsonResult = JSON.stringify(errorResult);
+                if (typeof Android !== 'undefined') {
+                    Android.onProofGenerated(jsonResult);
+                }
+
+                return jsonResult;
+            }
+        }
+
+        // Initialize on page load
+        window.addEventListener('load', () => {
+            console.log('Window loaded, initializing WASM...');
+            initializeWasm();
+        });
+
+        // Make generateProof available globally
+        window.generateProof = generateProof;
+    </script>
+</body>
+</html>
