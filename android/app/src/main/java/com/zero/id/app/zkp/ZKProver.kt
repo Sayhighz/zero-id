@@ -12,6 +12,7 @@ import com.google.gson.JsonObject
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeout
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
@@ -93,57 +94,66 @@ class ZKProver(private val context: Context) {
         birthYear: Int,
         minAge: Int,
         currentYear: Int
-    ): ProofResult = suspendCancellableCoroutine { continuation ->
-
+    ): ProofResult {
+        // Check initialization
         if (!isInitialized) {
-            continuation.resumeWithException(
-                IllegalStateException("ZKProver not initialized. Call initialize() first.")
-            )
-            return@suspendCancellableCoroutine
+            throw ZKProverException.NotInitialized()
         }
 
-        // Input validation
-        if (birthYear < 1900 || birthYear > currentYear) {
-            continuation.resumeWithException(
-                IllegalArgumentException("Birth year must be between 1900 and $currentYear")
-            )
-            return@suspendCancellableCoroutine
+        // Input validation with specific error messages
+        if (birthYear < 1900) {
+            throw ZKProverException.InvalidInput("birthYear", "must be >= 1900, got $birthYear")
         }
-
-        if (minAge < 0 || minAge > 150) {
-            continuation.resumeWithException(
-                IllegalArgumentException("Min age must be between 0 and 150")
-            )
-            return@suspendCancellableCoroutine
+        if (birthYear > currentYear) {
+            throw ZKProverException.InvalidInput("birthYear", "cannot be in the future (current year: $currentYear)")
+        }
+        if (minAge < 0) {
+            throw ZKProverException.InvalidInput("minAge", "must be >= 0, got $minAge")
+        }
+        if (minAge > 150) {
+            throw ZKProverException.InvalidInput("minAge", "must be <= 150, got $minAge")
         }
 
         val startTime = System.currentTimeMillis()
         Log.d(TAG, "Starting proof generation for birthYear=$birthYear, minAge=$minAge, currentYear=$currentYear")
 
-        val javascript = """
-            (async function() {
-                try {
-                    const result = await window.generateProof($birthYear, $minAge, $currentYear);
-                    // Result will be sent via Android.onProofGenerated
-                } catch (error) {
-                    console.error('Error calling generateProof:', error);
-                    Android.onProofGenerated(JSON.stringify({ error: error.message }));
+        return try {
+            withTimeout(10_000) { // 10 second timeout
+                suspendCancellableCoroutine { continuation ->
+                    val javascript = """
+                        (async function() {
+                            try {
+                                const result = await window.generateProof($birthYear, $minAge, $currentYear);
+                                // Result will be sent via Android.onProofGenerated
+                            } catch (error) {
+                                console.error('Error calling generateProof:', error);
+                                Android.onProofGenerated(JSON.stringify({ error: error.message }));
+                            }
+                        })();
+                    """.trimIndent()
+
+                    proofContinuation = continuation
+
+                    // Set up cancellation
+                    continuation.invokeOnCancellation {
+                        Log.d(TAG, "Proof generation cancelled")
+                        proofContinuation = null
+                    }
+
+                    webView?.evaluateJavascript(javascript) { result ->
+                        val elapsedTime = System.currentTimeMillis() - startTime
+                        Log.d(TAG, "JavaScript evaluation completed in ${elapsedTime}ms")
+                        // Actual result comes via WebAppInterface.onProofGenerated
+                    }
                 }
-            })();
-        """.trimIndent()
-
-        proofContinuation = continuation
-
-        // Set up cancellation
-        continuation.invokeOnCancellation {
-            Log.d(TAG, "Proof generation cancelled")
-            proofContinuation = null
-        }
-
-        webView?.evaluateJavascript(javascript) { result ->
+            }
+        } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
             val elapsedTime = System.currentTimeMillis() - startTime
-            Log.d(TAG, "JavaScript evaluation completed in ${elapsedTime}ms")
-            // Actual result comes via WebAppInterface.onProofGenerated
+            Log.e(TAG, "Proof generation timed out after ${elapsedTime}ms")
+            throw ZKProverException.ProofGenerationTimeout(10)
+        } finally {
+            val totalTime = System.currentTimeMillis() - startTime
+            Log.d(TAG, "Proof generation completed in ${totalTime}ms")
         }
     }
 
@@ -228,4 +238,29 @@ sealed class ProofResult {
      * @param message Error message
      */
     data class Error(val message: String) : ProofResult()
+}
+
+/**
+ * Custom exceptions for ZKProver operations
+ */
+sealed class ZKProverException(message: String) : Exception(message) {
+    /**
+     * ZKProver was not initialized before use
+     */
+    class NotInitialized : ZKProverException("ZKProver not initialized. Call initialize() first.")
+
+    /**
+     * WASM file failed to load
+     */
+    class WasmLoadFailed(reason: String) : ZKProverException("Failed to load WASM: $reason")
+
+    /**
+     * Proof generation exceeded timeout limit
+     */
+    class ProofGenerationTimeout(seconds: Int) : ZKProverException("Proof generation timed out after $seconds seconds")
+
+    /**
+     * Invalid input parameters provided
+     */
+    class InvalidInput(field: String, reason: String) : ZKProverException("Invalid $field: $reason")
 }
