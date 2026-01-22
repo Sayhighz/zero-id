@@ -1,29 +1,71 @@
 const express = require('express');
+const cors = require('cors');
+const snarkjs = require('snarkjs');
+const fs = require('fs');
+const path = require('path');
+
 const app = express();
 const port = 3000;
 
+app.use(cors());
 app.use(express.json());
 
-// Mock Verification Endpoint
-app.post('/api/verify', (req, res) => {
-    console.log("Received Proof Verification Request");
-    const { proof, publicSignals } = req.body;
+// โหลด verification key
+const vkeyPath = path.join(__dirname, 'verification_key.json');
+const vkey = JSON.parse(fs.readFileSync(vkeyPath, 'utf8'));
 
-    // TODO: Implement snarkjs.groth16.verify here
-    // For Hackathon Prototype: Return TRUE
+// Health check
+app.get('/', (req, res) => {
+    res.json({ status: 'ZeroID Verifier is running' });
+});
+
+// Verify endpoint
+app.post('/api/verify', async (req, res) => {
+    console.log("Received Proof Verification Request");
     
-    setTimeout(() => {
-        res.json({ 
-            success: true, 
-            message: "Zero-Knowledge Proof Verified",
-            details: {
-                isThaiCitizen: true,
-                ageCheck: "PASS"
-            }
+    try {
+        const { proof, publicSignals } = req.body;
+
+        if (!proof || !publicSignals) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Missing proof or publicSignals" 
+            });
+        }
+
+        // Verify proof ด้วย snarkjs
+        const isValid = await snarkjs.groth16.verify(vkey, publicSignals, proof);
+
+        if (isValid) {
+            const isOldEnough = publicSignals[0] === "1";
+            const minAge = publicSignals[1];
+            const currentYear = publicSignals[2];
+
+            res.json({ 
+                success: true, 
+                message: "Zero-Knowledge Proof Verified",
+                details: {
+                    isOldEnough: isOldEnough,
+                    minAge: minAge,
+                    currentYear: currentYear
+                }
+            });
+        } else {
+            res.json({ 
+                success: false, 
+                message: "Invalid Proof" 
+            });
+        }
+    } catch (error) {
+        console.error("Verification error:", error);
+        res.status(500).json({ 
+            success: false, 
+            message: "Verification failed",
+            error: error.message 
         });
-    }, 1000);
+    }
 });
 
 app.listen(port, () => {
-  console.log(`ZeroID Verifier running on port ${port}`);
+    console.log(`ZeroID Verifier running on http://localhost:${port}`);
 });
