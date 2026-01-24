@@ -66,6 +66,7 @@ app.post('/api/verify', async (req, res) => {
     }
 });
 
-app.listen(port, () => {
-    console.log(`ZeroID Verifier running on http://localhost:${port}`);
+// แก้จากแบบเดิม เป็นแบบนี้เพื่อให้รับแขกจาก 10.0.2.2 ได้
+app.listen(3001, '0.0.0.0', () => {
+    console.log("ZeroID Verifier running on http://0.0.0.0:3000");
 });
