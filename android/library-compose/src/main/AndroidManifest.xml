@@ -3,7 +3,7 @@
 
     <application>
         <activity
-            android:name="com.ncorti.kotlin.template.app.ComposeActivity"
+            android:name="com.zero.id.app.ComposeActivity"
             android:exported="false" />
     </application>
 
