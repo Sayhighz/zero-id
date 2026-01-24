@@ -6,6 +6,10 @@ plugins {
 }
 
 dependencies {
+    implementation(libs.gson)
+    implementation(libs.okhttp)
+    implementation(libs.kotlinx.coroutines.android)
+
     testImplementation(libs.junit)
 }
 

@@ -59,6 +59,9 @@ dependencies {
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.core.ktx)
 
+    // Biometric authentication
+    implementation(libs.androidx.biometric)
+
     testImplementation(libs.junit)
 
     androidTestImplementation(libs.androidx.test.runner)
