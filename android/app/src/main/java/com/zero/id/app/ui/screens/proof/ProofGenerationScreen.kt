@@ -40,7 +40,7 @@ fun ProofGenerationScreen(
                 } else {
                     "Age requirement not met"
                 }
-                onNavigateToResult(true, message)
+                onNavigateToResult(proofData.isOldEnough, message)
                 viewModel.resetState()
             }
             is ProofGenerationState.Error -> {

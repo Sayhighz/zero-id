@@ -1,4 +1,7 @@
-module.exports = async function builder(code, options) {
+// Browser-compatible wrapper
+(function() {
+
+async function builder(code, options) {
 
     options = options || {};
 
@@ -379,3 +382,15 @@ function fnvHash(str) {
     shash = '0'.repeat(n).concat(shash);
     return shash;
 }
+
+// Export for both Node.js and browser
+if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
+    module.exports = builder;
+} else if (typeof window !== 'undefined') {
+    window.WitnessCalculator = builder;
+} else {
+    // Fallback to global scope
+    this.WitnessCalculator = builder;
+}
+
+})();

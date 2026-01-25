@@ -47,17 +47,28 @@
                 console.log('=== Starting WASM initialization ===');
                 console.log('Fetching WASM from: zkp/age_check.wasm');
 
-                const response = await fetch('zkp/age_check.wasm');
-                console.log('Fetch response status:', response.status, response.statusText);
+                // Use XMLHttpRequest instead of fetch for file:// protocol on Android
+                wasmBuffer = await new Promise((resolve, reject) => {
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('GET', 'zkp/age_check.wasm', true);
+                    xhr.responseType = 'arraybuffer';
 
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
+                    xhr.onload = function() {
+                        if (xhr.status === 200 || xhr.status === 0) {
+                            console.log('WASM loaded, size:', xhr.response.byteLength, 'bytes');
+                            resolve(xhr.response);
+                        } else {
+                            reject(new Error(`HTTP ${xhr.status}: ${xhr.statusText}`));
+                        }
+                    };
 
-                const blob = await response.blob();
-                console.log('WASM blob received, size:', blob.size, 'bytes');
+                    xhr.onerror = function() {
+                        reject(new Error('Failed to load WASM file'));
+                    };
 
-                wasmBuffer = await blob.arrayBuffer();
+                    xhr.send();
+                });
+
                 console.log('WASM ArrayBuffer created, byteLength:', wasmBuffer.byteLength);
 
                 // Verify WitnessCalculator is available
