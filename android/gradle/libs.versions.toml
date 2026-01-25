@@ -1,41 +1,57 @@
 [versions]
-agp = "8.13.2"
+agp = "8.9.1"
 androidx_activity_compose = "1.12.2"
 androidx_test = "1.7.0"
 androidx_test_ext = "1.3.0"
 appcompat = "1.7.1"
+biometric = "1.4.0-alpha02"
 compile_sdk_version = "36"
 compose-bom = "2025.12.01"
 compose_compilerextension = "1.5.5"
 constraint_layout = "2.2.1"
 core_ktx = "1.17.0"
+coroutines = "1.9.0"
 detekt = "1.23.8"
 espresso_core = "3.7.0"
+gson = "2.10.1"
 junit = "4.13.2"
 kotlin = "2.3.0"
+lifecycle = "2.8.7"
 min_sdk_version = "23"
+navigation_compose = "2.8.5"
 nexus_publish = "2.0.0"
+okhttp = "4.12.0"
 target_sdk_version = "36"
 
 [libraries]
 junit = { module = "junit:junit", version.ref = "junit" }
 androidx_activity_compose = { module = "androidx.activity:activity-compose", version.ref = "androidx_activity_compose" }
 androidx_appcompat = { module = "androidx.appcompat:appcompat", version.ref = "appcompat" }
+androidx_biometric = { module = "androidx.biometric:biometric", version.ref = "biometric" }
 androidx_constraint_layout = { module = "androidx.constraintlayout:constraintlayout", version.ref = "constraint_layout" }
 androidx_core_ktx = { module = "androidx.core:core-ktx", version.ref = "core_ktx" }
+androidx_lifecycle_viewmodel_compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycle" }
+androidx_lifecycle_runtime_compose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycle" }
+androidx_navigation_compose = { module = "androidx.navigation:navigation-compose", version.ref = "navigation_compose" }
 androidx_test_rules = { module = "androidx.test:rules", version.ref = "androidx_test" }
 androidx_test_runner = { module = "androidx.test:runner", version.ref = "androidx_test" }
 androidx_test_ext_junit = { module = "androidx.test.ext:junit", version.ref = "androidx_test_ext" }
 androidx_test_ext_junit_ktx = { module = "androidx.test.ext:junit-ktx", version.ref = "androidx_test_ext" }
 compose-bom = { module = "androidx.compose:compose-bom", version.ref = "compose-bom" }
 compose_material = { module = "androidx.compose.material:material" }
+compose_material_icons_core = { module = "androidx.compose.material:material-icons-core" }
+compose_material_icons_extended = { module = "androidx.compose.material:material-icons-extended" }
 compose_foundation = { module = "androidx.compose.foundation:foundation" }
 compose_ui = { module = "androidx.compose.ui:ui" }
 compose_ui_tooling = { module = "androidx.compose.ui:ui-tooling" }
 compose_ui_test_junit4 = { module = "androidx.compose.ui:ui-test-junit4" }
 compose_ui_test_manifest = { module = "androidx.compose.ui:ui-test-manifest" }
+compose_material3 = { module = "androidx.compose.material3:material3" }
 detekt_formatting = { module = "io.gitlab.arturbosch.detekt:detekt-formatting", version.ref = "detekt" }
 espresso_core = { module = "androidx.test.espresso:espresso-core", version.ref = "espresso_core" }
+gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
+kotlinx_coroutines_android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
+okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
 agp = { module = "com.android.tools.build:gradle", version.ref = "agp" }
 kgp = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
 
