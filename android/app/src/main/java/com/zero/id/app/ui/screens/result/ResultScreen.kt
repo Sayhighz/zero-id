@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.dp
 import com.zero.id.app.ui.theme.ErrorRed
 import com.zero.id.app.ui.theme.SuccessGreen
 import com.zero.id.app.ui.theme.ZeroIDTheme
+import com.zero.id.network.Details
 
 /**
  * Result screen showing proof generation outcome
@@ -24,6 +25,7 @@ import com.zero.id.app.ui.theme.ZeroIDTheme
 fun ResultScreen(
     isSuccess: Boolean,
     message: String,
+    details: Details?,
     onNavigateHome: () -> Unit,
     onRetry: () -> Unit
 ) {
@@ -49,6 +51,7 @@ fun ResultScreen(
             if (isSuccess) {
                 SuccessContent(
                     message = message,
+                    details = details,
                     onNavigateHome = onNavigateHome
                 )
             } else {
@@ -68,6 +71,7 @@ fun ResultScreen(
 @Composable
 private fun SuccessContent(
     message: String,
+    details: Details?,
     onNavigateHome: () -> Unit
 ) {
     // Success icon
@@ -82,7 +86,7 @@ private fun SuccessContent(
 
     // Success headline
     Text(
-        text = "Proof Generated Successfully!",
+        text = if (details?.isOldEnough == true) "Verification Successful" else "Verification Failed",
         style = MaterialTheme.typography.headlineMedium,
         color = MaterialTheme.colorScheme.onBackground,
         textAlign = TextAlign.Center
@@ -106,7 +110,7 @@ private fun SuccessContent(
     OutlinedCard(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.outlinedCardColors(
-            containerColor = SuccessGreen.copy(alpha = 0.1f)
+            containerColor = if (details?.isOldEnough == true) SuccessGreen.copy(alpha = 0.1f) else ErrorRed.copy(alpha = 0.1f)
         )
     ) {
         Column(
@@ -120,18 +124,20 @@ private fun SuccessContent(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            ResultDetailRow(label = "Status", value = "Verified ✓", valueColor = SuccessGreen)
+            ResultDetailRow(
+                label = "Status",
+                value = if (details?.isOldEnough == true) "Verified ✓" else "Not Verified ✗",
+                valueColor = if (details?.isOldEnough == true) SuccessGreen else ErrorRed
+            )
             Spacer(modifier = Modifier.height(8.dp))
 
-            ResultDetailRow(label = "Proof Type", value = "Zero-Knowledge")
-            Spacer(modifier = Modifier.height(8.dp))
+            if (details != null) {
+                ResultDetailRow(label = "Minimum Age", value = details.minAge)
+                Spacer(modifier = Modifier.height(8.dp))
 
-            ResultDetailRow(label = "Privacy", value = "Fully Protected")
-            Spacer(modifier = Modifier.height(8.dp))
-
-            ResultDetailRow(label = "Protocol", value = "Groth16")
-
-            Spacer(modifier = Modifier.height(12.dp))
+                ResultDetailRow(label = "Verification Year", value = details.currentYear)
+                Spacer(modifier = Modifier.height(12.dp))
+            }
 
             Divider()
 
@@ -316,6 +322,7 @@ fun ResultScreenSuccessPreview() {
         ResultScreen(
             isSuccess = true,
             message = "Age verification successful",
+            details = Details(isOldEnough = true, minAge = "20", currentYear = "2025"),
             onNavigateHome = {},
             onRetry = {}
         )
@@ -329,6 +336,7 @@ fun ResultScreenErrorPreview() {
         ResultScreen(
             isSuccess = false,
             message = "Network connection error",
+            details = null,
             onNavigateHome = {},
             onRetry = {}
         )

@@ -14,6 +14,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zero.id.app.ui.theme.ZeroIDTheme
+import com.zero.id.network.VerificationRequest
 
 /**
  * Proof generation screen
@@ -23,7 +24,7 @@ import com.zero.id.app.ui.theme.ZeroIDTheme
 @Composable
 fun ProofGenerationScreen(
     onNavigateBack: () -> Unit,
-    onNavigateToResult: (Boolean, String) -> Unit,
+    onVerificationRequest: (VerificationRequest) -> Unit,
     viewModel: ProofGenerationViewModel = viewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -34,13 +35,7 @@ fun ProofGenerationScreen(
     LaunchedEffect(state) {
         when (val currentState = state) {
             is ProofGenerationState.Success -> {
-                val proofData = currentState.proofData
-                val message = if (proofData.isOldEnough) {
-                    "Age verification successful"
-                } else {
-                    "Age requirement not met"
-                }
-                onNavigateToResult(true, message)
+                onVerificationRequest(currentState.verificationRequest)
                 viewModel.resetState()
             }
             is ProofGenerationState.Error -> {
@@ -259,7 +254,7 @@ fun ProofGenerationScreenPreview() {
     ZeroIDTheme {
         ProofGenerationScreen(
             onNavigateBack = {},
-            onNavigateToResult = { _, _ -> }
+            onVerificationRequest = {}
         )
     }
 }

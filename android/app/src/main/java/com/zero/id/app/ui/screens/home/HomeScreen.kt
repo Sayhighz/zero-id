@@ -10,6 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.zero.id.app.ui.screens.ageproof.GenerateAgeProofScreen
 import com.zero.id.app.ui.theme.ZeroIDTheme
 
 /**
@@ -19,7 +20,9 @@ import com.zero.id.app.ui.theme.ZeroIDTheme
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    onNavigateToProofGeneration: () -> Unit
+    onNavigateToProofGeneration: () -> Unit,
+    onNavigateToQrScanner: () -> Unit,
+    onVerifyFromJson: (String) -> Unit
 ) {
     Scaffold(
         topBar = {
@@ -71,17 +74,11 @@ fun HomeScreen(
             Spacer(modifier = Modifier.height(48.dp))
 
             // Primary action button
-            Button(
-                onClick = onNavigateToProofGeneration,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp)
-            ) {
-                Text(
-                    text = "Generate Age Proof",
-                    style = MaterialTheme.typography.titleMedium
-                )
-            }
+            GenerateAgeProofScreen(
+                onNavigateToProofGeneration = onNavigateToProofGeneration,
+                onNavigateToQrScanner = onNavigateToQrScanner,
+                onVerifyFromJson = onVerifyFromJson
+            )
 
             Spacer(modifier = Modifier.height(32.dp))
 
@@ -176,7 +173,9 @@ private fun InfoPoint(number: String, text: String) {
 fun HomeScreenPreview() {
     ZeroIDTheme {
         HomeScreen(
-            onNavigateToProofGeneration = {}
+            onNavigateToProofGeneration = {},
+            onNavigateToQrScanner = {},
+            onVerifyFromJson = {}
         )
     }
 }

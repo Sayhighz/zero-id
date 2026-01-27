@@ -1,4 +1,4 @@
-package com.zero.id.app.network
+package com.zero.id.network
 
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory

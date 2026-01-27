@@ -12,18 +12,26 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.google.gson.Gson
 import com.zero.id.app.ui.screens.home.HomeScreen
 import com.zero.id.app.ui.screens.proof.ProofGenerationScreen
 import com.zero.id.app.ui.screens.proof.ProofGenerationViewModel
+import com.zero.id.app.ui.screens.proof.ProofGenerationViewModelFactory
+import com.zero.id.app.ui.screens.qr.QRScannerScreen
 import com.zero.id.app.ui.screens.result.ResultScreen
 import com.zero.id.app.zkp.ZKProver
+import com.zero.id.network.Details
+import com.zero.id.network.RetrofitClient
+import com.zero.id.network.VerificationRequest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
@@ -35,6 +43,8 @@ fun NavGraph(
     navController: NavHostController,
     startDestination: String = Screen.Home.route
 ) {
+    val coroutineScope = rememberCoroutineScope()
+
     NavHost(
         navController = navController,
         startDestination = startDestination
@@ -44,6 +54,31 @@ fun NavGraph(
             HomeScreen(
                 onNavigateToProofGeneration = {
                     navController.navigate(Screen.ProofGeneration.route)
+                },
+                onNavigateToQrScanner = {
+                    navController.navigate(Screen.QRScanner.route)
+                },
+                onVerifyFromJson = {
+                    coroutineScope.launch {
+                        try {
+                            val verificationRequest = Gson().fromJson(it, VerificationRequest::class.java)
+                            val response = RetrofitClient.instance.verify(verificationRequest)
+                            if (response.isSuccessful && response.body() != null) {
+                                val detailsJson = Gson().toJson(response.body()!!.details)
+                                navController.navigate(Screen.Result.createRoute(true, response.body()!!.message, detailsJson)) {
+                                    popUpTo(Screen.Home.route)
+                                }
+                            } else {
+                                navController.navigate(Screen.Result.createRoute(false, "Verification failed")) {
+                                    popUpTo(Screen.Home.route)
+                                }
+                            }
+                        } catch (e: Exception) {
+                            navController.navigate(Screen.Result.createRoute(false, e.message ?: "An unexpected error occurred")) {
+                                popUpTo(Screen.Home.route)
+                            }
+                        }
+                    }
                 }
             )
         }
@@ -124,16 +159,34 @@ fun NavGraph(
 
                 // Show screen when initialized
                 isInitialized && zkProver != null -> {
+                    val factory = ProofGenerationViewModelFactory(zkProver!!)
+                    val viewModel: ProofGenerationViewModel = viewModel(factory = factory)
                     ProofGenerationScreen(
                         onNavigateBack = {
                             navController.popBackStack()
                         },
-                        onNavigateToResult = { isSuccess, message ->
-                            navController.navigate(Screen.Result.createRoute(isSuccess, message)) {
-                                popUpTo(Screen.Home.route)
+                        onVerificationRequest = {
+                            coroutineScope.launch {
+                                try {
+                                    val response = RetrofitClient.instance.verify(it)
+                                    if (response.isSuccessful && response.body() != null) {
+                                        val detailsJson = Gson().toJson(response.body()!!.details)
+                                        navController.navigate(Screen.Result.createRoute(true, response.body()!!.message, detailsJson)) {
+                                            popUpTo(Screen.Home.route)
+                                        }
+                                    } else {
+                                        navController.navigate(Screen.Result.createRoute(false, "Verification failed")) {
+                                            popUpTo(Screen.Home.route)
+                                        }
+                                    }
+                                } catch (e: Exception) {
+                                    navController.navigate(Screen.Result.createRoute(false, e.message ?: "An unexpected error occurred")) {
+                                        popUpTo(Screen.Home.route)
+                                    }
+                                }
                             }
                         },
-                        viewModel = ProofGenerationViewModel(zkProver)
+                        viewModel = viewModel
                     )
                 }
 
@@ -172,16 +225,22 @@ fun NavGraph(
                 },
                 navArgument("message") {
                     type = NavType.StringType
-                    defaultValue = ""
+                },
+                navArgument("details") {
+                    type = NavType.StringType
+                    nullable = true
                 }
             )
         ) { backStackEntry ->
             val isSuccess = backStackEntry.arguments?.getBoolean("isSuccess") ?: false
             val message = backStackEntry.arguments?.getString("message") ?: ""
+            val detailsJson = backStackEntry.arguments?.getString("details")
+            val details = if (detailsJson != null) Gson().fromJson(detailsJson, Details::class.java) else null
 
             ResultScreen(
                 isSuccess = isSuccess,
                 message = message,
+                details = details,
                 onNavigateHome = {
                     navController.navigate(Screen.Home.route) {
                         popUpTo(Screen.Home.route) {
@@ -195,6 +254,32 @@ fun NavGraph(
                     }
                 }
             )
+        }
+
+        // QR Scanner Screen
+        composable(route = Screen.QRScanner.route) {
+            QRScannerScreen {
+                coroutineScope.launch {
+                    try {
+                        val verificationRequest = Gson().fromJson(it, VerificationRequest::class.java)
+                        val response = RetrofitClient.instance.verify(verificationRequest)
+                        if (response.isSuccessful && response.body() != null) {
+                            val detailsJson = Gson().toJson(response.body()!!.details)
+                            navController.navigate(Screen.Result.createRoute(true, response.body()!!.message, detailsJson)) {
+                                popUpTo(Screen.Home.route)
+                            }
+                        } else {
+                            navController.navigate(Screen.Result.createRoute(false, "Verification failed")) {
+                                popUpTo(Screen.Home.route)
+                            }
+                        }
+                    } catch (e: Exception) {
+                        navController.navigate(Screen.Result.createRoute(false, e.message ?: "An unexpected error occurred")) {
+                            popUpTo(Screen.Home.route)
+                        }
+                    }
+                }
+            }
         }
     }
 }

@@ -2,9 +2,12 @@ package com.zero.id.app.ui.screens.proof
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.gson.Gson
 import com.zero.id.app.zkp.ProofResult
 import com.zero.id.app.zkp.ZKProver
 import com.zero.id.library.model.ProofData
+import com.zero.id.network.Details
+import com.zero.id.network.VerificationRequest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,7 +20,7 @@ import java.util.Calendar
 sealed class ProofGenerationState {
     object Idle : ProofGenerationState()
     object Loading : ProofGenerationState()
-    data class Success(val proofData: ProofData) : ProofGenerationState()
+    data class Success(val verificationRequest: VerificationRequest) : ProofGenerationState()
     data class Error(val message: String) : ProofGenerationState()
 }
 
@@ -115,7 +118,11 @@ class ProofGenerationViewModel(
                             proof = result.proof,
                             publicSignals = result.publicSignals
                         )
-                        _state.value = ProofGenerationState.Success(proofData)
+                        val verificationRequest = VerificationRequest(
+                            proof = Gson().fromJson(Gson().toJson(result.proof), com.zero.id.network.Proof::class.java),
+                            publicSignals = result.publicSignals
+                        )
+                        _state.value = ProofGenerationState.Success(verificationRequest)
                     }
                     is ProofResult.Error -> {
                         _state.value = ProofGenerationState.Error(result.message)

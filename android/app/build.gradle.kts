@@ -1,3 +1,6 @@
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
 plugins {
     id("com.android.application")
@@ -11,6 +14,13 @@ val APP_ID : String by project
 
 android {
     compileSdk = libs.versions.compile.sdk.version.get().toInt()
+
+    sourceSets {
+        getByName("main") {
+            res.setSrcDirs(listOf("src/main/res", "app/src/main/res"))
+            java.setSrcDirs(listOf("src/main/java"))
+        }
+    }
 
     defaultConfig {
         minSdk = libs.versions.min.sdk.version.get().toInt()
@@ -78,9 +88,18 @@ dependencies {
     implementation(libs.androidx.constraint.layout)
     implementation(libs.androidx.core.ktx)
 
+    // CameraX and ML Kit
+    implementation(libs.androidx.camera.core)
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.view)
+    implementation(libs.mlkit.barcode.scanning)
+
     // WebView & Network
     implementation(libs.gson)
     implementation(libs.okhttp)
+    implementation(libs.retrofit)
+    implementation(libs.retrofit.converter.gson)
 
     // Compose BOM & Core
     implementation(platform(libs.compose.bom))
