@@ -11,7 +11,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -42,7 +41,13 @@ fun ProofGenerationScreen(
             emptyMap<String, Any>()
         }
     }
-    val minAge = requestedFields["minAge"] as? String
+    val minAge = remember {
+        when (val age = requestedFields["minAge"]) {
+            is Double -> age.toInt().toString()
+            is String -> age
+            else -> null
+        }
+    }
 
     LaunchedEffect(webView) {
         viewModel.initializeZkp(webView)
@@ -96,7 +101,10 @@ fun ProofGenerationScreen(
                         label = { Text("Birth Year") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                     )
-                    Button(onClick = { viewModel.generateProof(minAge ?: "") }) {
+                    Button(
+                        onClick = { minAge?.let { viewModel.generateProof(it) } },
+                        enabled = minAge != null
+                    ) {
                         Text("Generate Proof")
                     }
                 }

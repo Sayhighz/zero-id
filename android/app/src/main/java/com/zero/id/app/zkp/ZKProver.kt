@@ -51,7 +51,7 @@ class ZKProver(private val context: Context) {
             // Performance optimizations
             settings.cacheMode = android.webkit.WebSettings.LOAD_DEFAULT
             settings.databaseEnabled = true
-            settings.setRenderPriority(android.webkit.WebSettings.RenderPriority.HIGH)
+            settings.setRenderPriority(android.webkit.WebSettings.RenderPriority.NORMAL)
 
             // Enable WebView debugging in debug builds
             WebView.setWebContentsDebuggingEnabled(true) // Always enabled for development

@@ -34,8 +34,10 @@ import com.zero.id.app.ui.screens.result.ResultScreen
 import com.zero.id.app.zkp.ZKProver
 import com.zero.id.network.Details
 import com.zero.id.network.RetrofitClient
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun NavGraph(
@@ -93,7 +95,9 @@ fun NavGraph(
 
             LaunchedEffect(Unit) {
                 try {
-                    val prover = ZKProver(context)
+                    val prover = withContext(Dispatchers.IO) {
+                        ZKProver(context)
+                    }
                     prover.initialize(webView) { success ->
                         isInitialized = success
                         if (success) zkProver = prover else initError = "Failed to initialize proof generator"
@@ -115,8 +119,7 @@ fun NavGraph(
                 }
             } else if (isInitialized && zkProver != null) {
                 val factory = ProofGenerationViewModelFactory(
-                    context.applicationContext as Application,
-                    zkProver!!
+                    context.applicationContext as Application
                 )
                 val viewModel: ProofGenerationViewModel = viewModel(factory = factory)
                 ProofGenerationScreen(
@@ -197,6 +200,7 @@ fun NavGraph(
             ImageScannerScreen(
                 onScanned = {
                     homeViewModel.onScannedData(it)
+                    navController.popBackStack()
                 },
                 onNavigateBack = { navController.popBackStack() }
             )

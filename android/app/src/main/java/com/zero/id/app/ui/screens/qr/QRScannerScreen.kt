@@ -2,6 +2,7 @@ package com.zero.id.app.ui.screens.qr
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
@@ -151,6 +152,9 @@ private class QrCodeAnalyzer(private val onQrCodeScanned: (String) -> Unit) : Im
                         isScanning = false
                         barcodes.first().rawValue?.let(onQrCodeScanned)
                     }
+                }
+                .addOnFailureListener { e ->
+                    Log.e("QrCodeAnalyzer", "Error scanning QR code", e)
                 }
                 .addOnCompleteListener {
                     imageProxy.close()

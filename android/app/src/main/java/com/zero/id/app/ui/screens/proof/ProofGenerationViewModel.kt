@@ -11,6 +11,7 @@ import com.zero.id.network.VerificationRequest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.util.Calendar
 
 sealed class ZkpState {
     object Idle : ZkpState()
@@ -20,8 +21,7 @@ sealed class ZkpState {
 }
 
 class ProofGenerationViewModel(
-    application: Application,
-    private val zkProver: ZKProver
+    application: Application
 ) : AndroidViewModel(application) {
 
     private val _zkpState = MutableStateFlow<ZkpState>(ZkpState.Idle)
@@ -35,18 +35,17 @@ class ProofGenerationViewModel(
     fun initializeZkp(webView: WebView) {
         if (_zkpState.value is ZkpState.Idle) {
             _zkpState.value = ZkpState.Initializing
-            viewModelScope.launch {
-                try {
-                    zkProver.initialize(webView) { success ->
-                        if (success) {
-                            _zkpState.value = ZkpState.Initialized(zkProver)
-                        } else {
-                            _zkpState.value = ZkpState.Error("Failed to initialize proof generator")
-                        }
+            try {
+                val zkProver = ZKProver(getApplication())
+                zkProver.initialize(webView) { success ->
+                    if (success) {
+                        _zkpState.value = ZkpState.Initialized(zkProver)
+                    } else {
+                        _zkpState.value = ZkpState.Error("Failed to initialize proof generator")
                     }
-                } catch (e: Exception) {
-                    _zkpState.value = ZkpState.Error("Error: ${e.message}")
                 }
+            } catch (e: Exception) {
+                _zkpState.value = ZkpState.Error("Error: ${e.message}")
             }
         }
     }
@@ -60,7 +59,7 @@ class ProofGenerationViewModel(
                     val result = currentZkpState.zkProver.generateProof(
                         birthYear.value.toInt(),
                         minAge.toInt(),
-                        java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
+                        Calendar.getInstance().get(Calendar.YEAR)
                     )
                     when (result) {
                         is ProofResult.Success -> {
