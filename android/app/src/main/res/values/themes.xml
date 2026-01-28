@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.ZeroID" parent="android:Theme.Material.Light.NoActionBar" />
+
+    <!-- Define AppTheme to match what is used in AndroidManifest.xml -->
+    <style name="AppTheme" parent="Theme.ZeroID" />
+</resources>

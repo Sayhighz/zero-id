@@ -18,10 +18,17 @@ sealed class Screen(val route: String) {
      * Result screen - displays proof generation result
      * @param isSuccess Whether the operation was successful
      */
-    object Result : Screen("result/{isSuccess}/{message}?details={details}") {
-        fun createRoute(isSuccess: Boolean, message: String = "", details: String? = null): String {
+    object Result : Screen("result/{isSuccess}/{message}?details={details}&minAge={minAge}&birthYear={birthYear}") {
+        fun createRoute(isSuccess: Boolean, message: String = "", details: String? = null, minAge: String? = null, birthYear: String? = null): String {
             val baseRoute = "result/$isSuccess/$message"
-            return if (details != null) "$baseRoute?details=$details" else baseRoute
+            var route = if (details != null) "$baseRoute?details=$details" else baseRoute
+            if (minAge != null) {
+                route += "&minAge=$minAge"
+            }
+            if (birthYear != null) {
+                route += "&birthYear=$birthYear"
+            }
+            return route
         }
     }
 

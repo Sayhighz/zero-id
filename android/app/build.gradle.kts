@@ -17,7 +17,7 @@ android {
 
     sourceSets {
         getByName("main") {
-            res.setSrcDirs(listOf("src/main/res", "app/src/main/res"))
+            res.setSrcDirs(listOf("src/main/res"))
             java.setSrcDirs(listOf("src/main/java"))
         }
     }
@@ -87,6 +87,7 @@ dependencies {
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.constraint.layout)
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.security.crypto)
 
     // CameraX and ML Kit
     implementation(libs.androidx.camera.core)

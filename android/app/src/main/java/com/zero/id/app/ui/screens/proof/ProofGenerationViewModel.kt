@@ -1,8 +1,10 @@
 package com.zero.id.app.ui.screens.proof
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.gson.Gson
+import com.zero.id.app.ServiceLocator
 import com.zero.id.app.zkp.ProofResult
 import com.zero.id.app.zkp.ZKProver
 import com.zero.id.library.model.ProofData
@@ -29,8 +31,9 @@ sealed class ProofGenerationState {
  * Manages user input and proof generation logic
  */
 class ProofGenerationViewModel(
+    application: Application,
     private val zkProver: ZKProver? = null
-) : ViewModel() {
+) : AndroidViewModel(application) {
 
     private val _state = MutableStateFlow<ProofGenerationState>(ProofGenerationState.Idle)
     val state: StateFlow<ProofGenerationState> = _state.asStateFlow()
@@ -42,12 +45,27 @@ class ProofGenerationViewModel(
     val minAge: StateFlow<String> = _minAge.asStateFlow()
 
     private val currentYear = Calendar.getInstance().get(Calendar.YEAR)
+    private val profileStorage = ServiceLocator.provideProfileStorage(application)
+
+    init {
+        // Load initial data from profile storage
+        loadUserProfile()
+    }
+
+    /**
+     * Load user profile and set initial birth year
+     */
+    private fun loadUserProfile() {
+        val profile = profileStorage.getProfile()
+        if (profile.birthYear > 0) {
+            _birthYear.value = profile.birthYear.toString()
+        }
+    }
 
     /**
      * Update birth year input
      */
     fun updateBirthYear(year: String) {
-        // Only allow digits and limit to 4 characters
         if (year.isEmpty() || (year.all { it.isDigit() } && year.length <= 4)) {
             _birthYear.value = year
         }
@@ -57,7 +75,6 @@ class ProofGenerationViewModel(
      * Update minimum age input
      */
     fun updateMinAge(age: String) {
-        // Only allow digits and limit to 3 characters
         if (age.isEmpty() || (age.all { it.isDigit() } && age.length <= 3)) {
             _minAge.value = age
         }
@@ -87,7 +104,6 @@ class ProofGenerationViewModel(
      * Generate zero-knowledge proof with current inputs
      */
     fun generateProof() {
-        // Validate inputs first
         val validationError = validateInputs()
         if (validationError != null) {
             _state.value = ProofGenerationState.Error(validationError)
@@ -114,10 +130,6 @@ class ProofGenerationViewModel(
 
                 when (result) {
                     is ProofResult.Success -> {
-                        val proofData = ProofData(
-                            proof = result.proof,
-                            publicSignals = result.publicSignals
-                        )
                         val verificationRequest = VerificationRequest(
                             proof = Gson().fromJson(Gson().toJson(result.proof), com.zero.id.network.Proof::class.java),
                             publicSignals = result.publicSignals
@@ -136,16 +148,10 @@ class ProofGenerationViewModel(
         }
     }
 
-    /**
-     * Reset to idle state
-     */
     fun resetState() {
         _state.value = ProofGenerationState.Idle
     }
 
-    /**
-     * Clear all inputs
-     */
     fun clearInputs() {
         _birthYear.value = ""
         _minAge.value = ""

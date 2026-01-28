@@ -3,6 +3,7 @@ package com.zero.id.app
 import android.content.Context
 import android.webkit.WebView
 import com.zero.id.app.security.KeyStoreManager
+import com.zero.id.app.security.ProfileStorage
 import com.zero.id.app.zkp.SecureProofGenerator
 import com.zero.id.app.zkp.ZKProver
 import com.zero.id.library.network.VerifierClient
@@ -21,6 +22,7 @@ object ServiceLocator {
     private var _secureProofGenerator: SecureProofGenerator? = null
     private var _verifierClient: VerifierClient? = null
     private var _webView: WebView? = null
+    private var _profileStorage: ProfileStorage? = null
 
     /**
      * Initialize the service locator with application context
@@ -28,6 +30,16 @@ object ServiceLocator {
      */
     fun init(context: Context) {
         applicationContext = context.applicationContext
+    }
+
+    /**
+     * Get or create ProfileStorage instance
+     */
+    fun provideProfileStorage(context: Context): ProfileStorage {
+        if (_profileStorage == null) {
+            _profileStorage = ProfileStorage(context.applicationContext)
+        }
+        return _profileStorage!!
     }
 
     /**
@@ -93,6 +105,7 @@ object ServiceLocator {
         _keyStoreManager = null
         _secureProofGenerator = null
         _verifierClient = null
+        _profileStorage = null
         applicationContext = null
     }
 

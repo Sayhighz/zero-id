@@ -1,5 +1,6 @@
 package com.zero.id.app.ui.navigation
 
+import android.app.Application
 import android.webkit.WebView
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Button
@@ -30,14 +31,9 @@ import com.zero.id.network.Details
 import com.zero.id.network.RetrofitClient
 import com.zero.id.network.VerificationRequest
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/**
- * Navigation graph for ZeroID app
- * Defines all navigation routes and screen transitions
- */
 @Composable
 fun NavGraph(
     navController: NavHostController,
@@ -49,7 +45,6 @@ fun NavGraph(
         navController = navController,
         startDestination = startDestination
     ) {
-        // Home Screen
         composable(route = Screen.Home.route) {
             HomeScreen(
                 onNavigateToProofGeneration = {
@@ -62,14 +57,16 @@ fun NavGraph(
                     coroutineScope.launch {
                         try {
                             val verificationRequest = Gson().fromJson(it, VerificationRequest::class.java)
+                            val minAge = verificationRequest.publicSignals[1]
                             val response = RetrofitClient.instance.verify(verificationRequest)
                             if (response.isSuccessful && response.body() != null) {
                                 val detailsJson = Gson().toJson(response.body()!!.details)
-                                navController.navigate(Screen.Result.createRoute(true, response.body()!!.message, detailsJson)) {
+                                // แก้ไขจุดที่ 1: เปลี่ยนจาก 2000 เป็น 2005
+                                navController.navigate(Screen.Result.createRoute(true, response.body()!!.message, detailsJson, minAge = minAge, birthYear = "2005")) {
                                     popUpTo(Screen.Home.route)
                                 }
                             } else {
-                                navController.navigate(Screen.Result.createRoute(false, "Verification failed")) {
+                                navController.navigate(Screen.Result.createRoute(false, "Verification failed", minAge = minAge)) {
                                     popUpTo(Screen.Home.route)
                                 }
                             }
@@ -83,193 +80,129 @@ fun NavGraph(
             )
         }
 
-        // Proof Generation Screen
         composable(route = Screen.ProofGeneration.route) {
             val context = LocalContext.current
-
-            // Hold WebView reference to prevent GC
             val webView = remember { WebView(context) }
             var zkProver by remember { mutableStateOf<ZKProver?>(null) }
             var isInitialized by remember { mutableStateOf(false) }
             var initError by remember { mutableStateOf<String?>(null) }
 
-            // Initialize ZKProver with WebView
             LaunchedEffect(Unit) {
                 try {
                     withContext(Dispatchers.Main) {
                         val prover = ZKProver(context)
-
-                        // Initialize with callback
                         prover.initialize(webView) { success ->
                             isInitialized = success
-                            if (success) {
-                                zkProver = prover
-                            } else {
-                                initError = "Failed to initialize proof generator"
-                            }
+                            if (success) zkProver = prover else initError = "Failed to initialize proof generator"
                         }
-                    }
-
-                    // Timeout after 30 seconds
-                    delay(30000)
-                    if (!isInitialized && initError == null) {
-                        initError = "Initialization timeout"
                     }
                 } catch (e: Exception) {
                     initError = "Error: ${e.message}"
                 }
             }
 
-            // Cleanup WebView when leaving
-            DisposableEffect(Unit) {
-                onDispose {
-                    webView.destroy()
-                }
-            }
+            DisposableEffect(Unit) { onDispose { webView.destroy() } }
 
-            when {
-                // Show error if initialization failed
-                initError != null -> {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Text(
-                            text = "Initialization Failed",
-                            style = MaterialTheme.typography.headlineSmall,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = initError ?: "Unknown error",
-                            style = MaterialTheme.typography.bodyMedium,
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.height(24.dp))
-                        Button(
-                            onClick = { navController.popBackStack() }
-                        ) {
-                            Text("Go Back")
-                        }
-                    }
+            if (initError != null) {
+                Column(modifier = Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                    Text("Initialization Failed", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.error)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(initError ?: "Unknown error", textAlign = TextAlign.Center)
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Button(onClick = { navController.popBackStack() }) { Text("Go Back") }
                 }
-
-                // Show screen when initialized
-                isInitialized && zkProver != null -> {
-                    val factory = ProofGenerationViewModelFactory(zkProver!!)
-                    val viewModel: ProofGenerationViewModel = viewModel(factory = factory)
-                    ProofGenerationScreen(
-                        onNavigateBack = {
-                            navController.popBackStack()
-                        },
-                        onVerificationRequest = {
-                            coroutineScope.launch {
-                                try {
-                                    val response = RetrofitClient.instance.verify(it)
-                                    if (response.isSuccessful && response.body() != null) {
-                                        val detailsJson = Gson().toJson(response.body()!!.details)
-                                        navController.navigate(Screen.Result.createRoute(true, response.body()!!.message, detailsJson)) {
-                                            popUpTo(Screen.Home.route)
-                                        }
-                                    } else {
-                                        navController.navigate(Screen.Result.createRoute(false, "Verification failed")) {
-                                            popUpTo(Screen.Home.route)
-                                        }
+            } else if (isInitialized && zkProver != null) {
+                val factory = ProofGenerationViewModelFactory(
+                    context.applicationContext as Application,
+                    zkProver!!
+                )
+                val viewModel: ProofGenerationViewModel = viewModel(factory = factory)
+                ProofGenerationScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onVerificationRequest = {
+                        coroutineScope.launch {
+                            val birthYear = viewModel.birthYear.value
+                            val minAge = it.publicSignals[1]
+                            try {
+                                val response = RetrofitClient.instance.verify(it)
+                                if (response.isSuccessful && response.body() != null && response.body()!!.details != null) {
+                                    val detailsJson = Gson().toJson(response.body()!!.details!!)
+                                    navController.navigate(Screen.Result.createRoute(true, response.body()!!.message, detailsJson, minAge, birthYear)) {
+                                        popUpTo(Screen.Home.route)
                                     }
-                                } catch (e: Exception) {
-                                    navController.navigate(Screen.Result.createRoute(false, e.message ?: "An unexpected error occurred")) {
+                                } else {
+                                    navController.navigate(Screen.Result.createRoute(false, "Verification failed", minAge = minAge, birthYear = birthYear)) {
                                         popUpTo(Screen.Home.route)
                                     }
                                 }
+                            } catch (e: Exception) {
+                                navController.navigate(Screen.Result.createRoute(false, e.message ?: "An unexpected error occurred", minAge = minAge, birthYear = birthYear)) {
+                                    popUpTo(Screen.Home.route)
+                                }
                             }
-                        },
-                        viewModel = viewModel
-                    )
-                }
-
-                // Show loading state while initializing
-                else -> {
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(64.dp)
-                        )
-                        Spacer(modifier = Modifier.height(24.dp))
-                        Text(
-                            text = "Initializing proof generator...",
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "This may take a moment",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                        )
-                    }
+                        }
+                    },
+                    viewModel = viewModel
+                )
+            } else {
+                Column(modifier = Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                    CircularProgressIndicator(modifier = Modifier.size(64.dp))
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Text("Initializing proof generator...")
                 }
             }
         }
 
-        // Result Screen
         composable(
             route = Screen.Result.route,
             arguments = listOf(
-                navArgument("isSuccess") {
-                    type = NavType.BoolType
-                },
-                navArgument("message") {
-                    type = NavType.StringType
-                },
-                navArgument("details") {
-                    type = NavType.StringType
-                    nullable = true
-                }
+                navArgument("isSuccess") { type = NavType.BoolType },
+                navArgument("message") { type = NavType.StringType },
+                navArgument("details") { type = NavType.StringType; nullable = true },
+                navArgument("minAge") { type = NavType.StringType; nullable = true },
+                navArgument("birthYear") { type = NavType.StringType; nullable = true }
             )
         ) { backStackEntry ->
             val isSuccess = backStackEntry.arguments?.getBoolean("isSuccess") ?: false
             val message = backStackEntry.arguments?.getString("message") ?: ""
             val detailsJson = backStackEntry.arguments?.getString("details")
             val details = if (detailsJson != null) Gson().fromJson(detailsJson, Details::class.java) else null
+            val minAge = backStackEntry.arguments?.getString("minAge")
+            val birthYear = backStackEntry.arguments?.getString("birthYear")
 
             ResultScreen(
                 isSuccess = isSuccess,
                 message = message,
                 details = details,
+                minAge = minAge,
+                birthYear = birthYear,
                 onNavigateHome = {
                     navController.navigate(Screen.Home.route) {
-                        popUpTo(Screen.Home.route) {
-                            inclusive = true
-                        }
+                        popUpTo(Screen.Home.route) { inclusive = true }
                     }
                 },
                 onRetry = {
-                    navController.navigate(Screen.ProofGeneration.route) {
-                        popUpTo(Screen.Home.route)
-                    }
+                    navController.navigate(Screen.Home.route) 
                 }
             )
         }
 
-        // QR Scanner Screen
         composable(route = Screen.QRScanner.route) {
             QRScannerScreen {
                 coroutineScope.launch {
                     try {
                         val verificationRequest = Gson().fromJson(it, VerificationRequest::class.java)
+                        val minAge = verificationRequest.publicSignals[1]
+                        // แก้ไขจุดที่ 2: เป็น 2005 เรียบร้อยแล้ว
+                        val birthYear = "2005"
                         val response = RetrofitClient.instance.verify(verificationRequest)
                         if (response.isSuccessful && response.body() != null) {
                             val detailsJson = Gson().toJson(response.body()!!.details)
-                            navController.navigate(Screen.Result.createRoute(true, response.body()!!.message, detailsJson)) {
+                            navController.navigate(Screen.Result.createRoute(true, response.body()!!.message, detailsJson, minAge = minAge, birthYear = birthYear)) {
                                 popUpTo(Screen.Home.route)
                             }
                         } else {
-                            navController.navigate(Screen.Result.createRoute(false, "Verification failed")) {
+                            navController.navigate(Screen.Result.createRoute(false, "Verification failed", minAge = minAge, birthYear = birthYear)) {
                                 popUpTo(Screen.Home.route)
                             }
                         }

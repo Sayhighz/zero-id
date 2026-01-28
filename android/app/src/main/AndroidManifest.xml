@@ -23,9 +23,9 @@
         android:name=".ZeroIDApplication"
         android:allowBackup="true"
         android:usesCleartextTraffic="true"
-        android:icon="@mipmap/ic_launcher"
+        android:icon="@drawable/ic_launcher_background"
         android:label="@string/app_name"
-        android:roundIcon="@mipmap/ic_launcher_round"
+        android:roundIcon="@drawable/ic_launcher_background"
         android:supportsRtl="true"
         android:theme="@style/Theme.ZeroID"
         tools:ignore="AllowBackup">
