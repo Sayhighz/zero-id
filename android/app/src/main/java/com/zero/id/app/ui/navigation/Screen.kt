@@ -21,13 +21,21 @@ sealed class Screen(val route: String) {
     /**
      * Result screen - displays proof generation result
      */
-    object Result : Screen("result/{isSuccess}/{message}?minAge={minAge}&birthYear={birthYear}") {
-        fun createRoute(isSuccess: Boolean, message: String, minAge: String?, birthYear: String?): String {
+    object Result : Screen("result/{isSuccess}/{message}") {
+        fun createRoute(
+            isSuccess: Boolean,
+            message: String,
+            details: String?,
+            minAge: String?,
+            birthYear: String?
+        ): String {
             var route = "result/$isSuccess/$message"
-            if (minAge != null || birthYear != null) {
-                route += "?"
-                if (minAge != null) route += "minAge=$minAge"
-                if (birthYear != null) route += (if (minAge != null) "&" else "") + "birthYear=$birthYear"
+            val queryParams = mutableListOf<String>()
+            details?.let { queryParams.add("details=$it") }
+            minAge?.let { queryParams.add("minAge=$it") }
+            birthYear?.let { queryParams.add("birthYear=$it") }
+            if (queryParams.isNotEmpty()) {
+                route += "?" + queryParams.joinToString("&")
             }
             return route
         }
@@ -37,6 +45,11 @@ sealed class Screen(val route: String) {
      * QR scanner screen - scans QR codes for verification
      */
     object QRScanner : Screen("qr_scanner")
+
+    /**
+     * Image scanner screen - scans QR codes from an image
+     */
+    object ImageScanner : Screen("image_scanner")
 
     /**
      * QR Generator screen - generates QR codes for agency requests
