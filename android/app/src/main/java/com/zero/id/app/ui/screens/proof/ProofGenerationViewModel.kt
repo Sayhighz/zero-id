@@ -57,7 +57,7 @@ class ProofGenerationViewModel(
      */
     private fun loadUserProfile() {
         val profile = profileStorage.getProfile()
-        if (profile.birthYear > 0) {
+        if (profile != null && profile.birthYear > 0) {
             _birthYear.value = profile.birthYear.toString()
         }
     }

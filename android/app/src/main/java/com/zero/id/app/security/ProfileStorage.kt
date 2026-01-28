@@ -39,12 +39,12 @@ class ProfileStorage(context: Context) {
     /**
      * Retrieve user profile from secure storage
      */
-    fun getProfile(): UserProfile {
+    fun getProfile(): UserProfile? {
         val json = sharedPreferences.getString("profile_data", null)
         return if (json != null) {
             gson.fromJson(json, UserProfile::class.java)
         } else {
-            UserProfile() // Return empty profile if not found
+            null
         }
     }
 

@@ -13,29 +13,54 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.google.gson.Gson
+import com.zero.id.app.model.UserProfile
 import com.zero.id.app.ui.theme.ZeroIDTheme
+import com.zero.id.network.RetrofitClient
 import com.zero.id.network.VerificationRequest
+import kotlinx.coroutines.launch
 
 /**
  * Proof generation screen
- * Input form for birth year and minimum age
+ * Input form for user data requested by the agency
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProofGenerationScreen(
     onNavigateBack: () -> Unit,
-    onVerificationRequest: (VerificationRequest) -> Unit,
-    viewModel: ProofGenerationViewModel = viewModel()
+    onVerificationRequest: (VerificationRequest, String?) -> Unit,
+    viewModel: ProofGenerationViewModel = viewModel(),
+    requestJson: String
 ) {
     val state by viewModel.state.collectAsState()
     val birthYear by viewModel.birthYear.collectAsState()
-    val minAge by viewModel.minAge.collectAsState()
+    val requestedFields = remember {
+        try {
+            val type = object : com.google.gson.reflect.TypeToken<Map<String, Any>>() {}.type
+            Gson().fromJson<Map<String, Any>>(requestJson, type)
+        } catch (e: Exception) {
+            emptyMap<String, Any>()
+        }
+    }
+    val sessionId = requestedFields["sessionId"] as? String
+    val minAge = requestedFields["minAge"] as? String
+    val coroutineScope = rememberCoroutineScope()
 
     // Handle state changes
     LaunchedEffect(state) {
         when (val currentState = state) {
             is ProofGenerationState.Success -> {
-                onVerificationRequest(currentState.verificationRequest)
+                if (sessionId != null) {
+                    coroutineScope.launch {
+                        val userProfile = UserProfile(
+                            fullName = "Nonthee Panatuek", // Placeholder
+                            birthYear = birthYear.toInt(),
+                            phoneNumber = "090-000-0000" // Placeholder
+                        )
+                        RetrofitClient.instance.submitUserData(sessionId, userProfile)
+                    }
+                }
+                onVerificationRequest(currentState.verificationRequest, minAge)
                 viewModel.resetState()
             }
             is ProofGenerationState.Error -> {
@@ -43,6 +68,10 @@ fun ProofGenerationScreen(
             }
             else -> {}
         }
+    }
+
+    LaunchedEffect(requestJson) {
+        viewModel.updateMinAge(minAge ?: "")
     }
 
     Scaffold(
@@ -77,9 +106,8 @@ fun ProofGenerationScreen(
                 else -> {
                     InputFormContent(
                         birthYear = birthYear,
-                        minAge = minAge,
+                        requestedFields = requestedFields,
                         onBirthYearChange = viewModel::updateBirthYear,
-                        onMinAgeChange = viewModel::updateMinAge,
                         onGenerateProof = viewModel::generateProof,
                         errorMessage = (state as? ProofGenerationState.Error)?.message,
                         isLoading = state is ProofGenerationState.Loading
@@ -129,9 +157,8 @@ private fun LoadingContent() {
 @Composable
 private fun InputFormContent(
     birthYear: String,
-    minAge: String,
+    requestedFields: Map<String, Any>,
     onBirthYearChange: (String) -> Unit,
-    onMinAgeChange: (String) -> Unit,
     onGenerateProof: () -> Unit,
     errorMessage: String?,
     isLoading: Boolean
@@ -145,7 +172,7 @@ private fun InputFormContent(
         Spacer(modifier = Modifier.height(32.dp))
 
         Text(
-            text = "Enter your details to generate an age verification proof",
+            text = "The agency has requested the following information:",
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onBackground,
             textAlign = TextAlign.Center
@@ -153,7 +180,7 @@ private fun InputFormContent(
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Birth Year Input
+        // User Input Fields
         OutlinedTextField(
             value = birthYear,
             onValueChange = onBirthYearChange,
@@ -165,19 +192,20 @@ private fun InputFormContent(
             enabled = !isLoading
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Minimum Age Input
-        OutlinedTextField(
-            value = minAge,
-            onValueChange = onMinAgeChange,
-            label = { Text("Minimum Age") },
-            placeholder = { Text("e.g., 18") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-            enabled = !isLoading
-        )
+        requestedFields.forEach { (field, value) ->
+            if (field != "minAge" && field != "sessionId" && field != "type") {
+                Spacer(modifier = Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = "",
+                    onValueChange = {},
+                    label = { Text(field) },
+                    placeholder = { Text("e.g., $value") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isLoading
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.height(32.dp))
 
@@ -200,7 +228,7 @@ private fun InputFormContent(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = "The proof is generated entirely on your device. Your birth year never leaves your device and cannot be derived from the proof.",
+                    text = "The proof is generated entirely on your device. Your personal information never leaves your device and cannot be derived from the proof.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface
                 )
@@ -236,7 +264,7 @@ private fun InputFormContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
-            enabled = !isLoading && birthYear.isNotEmpty() && minAge.isNotEmpty()
+            enabled = !isLoading && birthYear.isNotEmpty()
         ) {
             Text(
                 text = "Generate Proof",
@@ -254,7 +282,8 @@ fun ProofGenerationScreenPreview() {
     ZeroIDTheme {
         ProofGenerationScreen(
             onNavigateBack = {},
-            onVerificationRequest = {}
+            onVerificationRequest = { _, _ -> },
+            requestJson = "{\"minAge\": 18, \"city\": \"New York\"}"
         )
     }
 }

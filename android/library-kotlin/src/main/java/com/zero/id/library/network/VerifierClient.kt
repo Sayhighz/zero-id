@@ -17,7 +17,7 @@ import java.util.concurrent.TimeUnit
  * Sends zero-knowledge proofs for verification
  */
 class VerifierClient(
-    private val baseUrl: String = "http://10.0.2.2:3000" // Android emulator localhost
+    private val baseUrl: String = "http://192.168.1.116:3000"
 ) {
     private val client = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)

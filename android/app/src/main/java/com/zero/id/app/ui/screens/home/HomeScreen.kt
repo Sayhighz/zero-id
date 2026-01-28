@@ -2,6 +2,7 @@ package com.zero.id.app.ui.screens.home
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -22,6 +23,7 @@ import com.zero.id.app.ui.theme.ZeroIDTheme
 fun HomeScreen(
     onNavigateToProofGeneration: () -> Unit,
     onNavigateToQrScanner: () -> Unit,
+    onNavigateToQrGenerator: () -> Unit,
     onVerifyFromJson: (String) -> Unit
 ) {
     Scaffold(
@@ -65,7 +67,7 @@ fun HomeScreen(
 
             // Subtitle
             Text(
-                text = "Prove your age without revealing your birth date",
+                text = "Prove your identity securely",
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
                 textAlign = TextAlign.Center
@@ -73,12 +75,32 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(48.dp))
 
-            // Primary action button
-            GenerateAgeProofScreen(
-                onNavigateToProofGeneration = onNavigateToProofGeneration,
-                onNavigateToQrScanner = onNavigateToQrScanner,
-                onVerifyFromJson = onVerifyFromJson
-            )
+            // Primary action buttons
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(modifier = Modifier.weight(1f)) {
+                    GenerateAgeProofScreen(
+                        onNavigateToProofGeneration = onNavigateToProofGeneration,
+                        onNavigateToQrScanner = onNavigateToQrScanner,
+                        onVerifyFromJson = onVerifyFromJson
+                    )
+                }
+                
+                Button(
+                    onClick = onNavigateToQrGenerator,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.secondary
+                    )
+                ) {
+                    Icon(Icons.Default.QrCode, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Create QR")
+                }
+            }
 
             Spacer(modifier = Modifier.height(32.dp))
 
@@ -90,7 +112,7 @@ fun HomeScreen(
                     modifier = Modifier.padding(16.dp)
                 ) {
                     Text(
-                        text = "How it works",
+                        text = "Features",
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.primary
                     )
@@ -99,27 +121,27 @@ fun HomeScreen(
 
                     InfoPoint(
                         number = "1",
-                        text = "Enter your birth year and minimum age requirement"
+                        text = "Generate ZK Proofs for age verification"
                     )
 
                     Spacer(modifier = Modifier.height(8.dp))
 
                     InfoPoint(
                         number = "2",
-                        text = "Generate a zero-knowledge proof on your device"
+                        text = "Scan QR codes to verify others"
                     )
 
                     Spacer(modifier = Modifier.height(8.dp))
 
                     InfoPoint(
                         number = "3",
-                        text = "Prove you meet the age requirement without revealing your actual age"
+                        text = "Create your own QR codes with personal info"
                     )
 
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Text(
-                        text = "Your birth date never leaves your device",
+                        text = "Privacy first, always.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.secondary,
                         modifier = Modifier.fillMaxWidth(),
@@ -175,6 +197,7 @@ fun HomeScreenPreview() {
         HomeScreen(
             onNavigateToProofGeneration = {},
             onNavigateToQrScanner = {},
+            onNavigateToQrGenerator = {},
             onVerifyFromJson = {}
         )
     }

@@ -12,21 +12,22 @@ sealed class Screen(val route: String) {
     /**
      * Proof generation screen - input form for age verification
      */
-    object ProofGeneration : Screen("proof_generation")
+    object ProofGeneration : Screen("proof_generation") {
+        fun createRoute(requestJson: String): String {
+            return "proof_generation?requestJson=$requestJson"
+        }
+    }
 
     /**
      * Result screen - displays proof generation result
-     * @param isSuccess Whether the operation was successful
      */
-    object Result : Screen("result/{isSuccess}/{message}?details={details}&minAge={minAge}&birthYear={birthYear}") {
-        fun createRoute(isSuccess: Boolean, message: String = "", details: String? = null, minAge: String? = null, birthYear: String? = null): String {
-            val baseRoute = "result/$isSuccess/$message"
-            var route = if (details != null) "$baseRoute?details=$details" else baseRoute
-            if (minAge != null) {
-                route += "&minAge=$minAge"
-            }
-            if (birthYear != null) {
-                route += "&birthYear=$birthYear"
+    object Result : Screen("result/{isSuccess}/{message}?minAge={minAge}&birthYear={birthYear}") {
+        fun createRoute(isSuccess: Boolean, message: String, minAge: String?, birthYear: String?): String {
+            var route = "result/$isSuccess/$message"
+            if (minAge != null || birthYear != null) {
+                route += "?"
+                if (minAge != null) route += "minAge=$minAge"
+                if (birthYear != null) route += (if (minAge != null) "&" else "") + "birthYear=$birthYear"
             }
             return route
         }
@@ -37,17 +38,8 @@ sealed class Screen(val route: String) {
      */
     object QRScanner : Screen("qr_scanner")
 
-    companion object {
-        /**
-         * Get all screen routes for navigation graph setup
-         */
-        fun getAllRoutes(): List<String> {
-            return listOf(
-                Home.route,
-                ProofGeneration.route,
-                Result.route,
-                QRScanner.route
-            )
-        }
-    }
+    /**
+     * QR Generator screen - generates QR codes for agency requests
+     */
+    object QRGenerator : Screen("qr_generator")
 }

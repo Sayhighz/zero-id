@@ -26,6 +26,7 @@ nexus_publish = "2.0.0"
 okhttp = "4.12.0"
 retrofit = "3.0.0"
 target_sdk_version = "36"
+zxing = "3.5.3"
 
 [libraries]
 junit = { module = "junit:junit", version.ref = "junit" }
@@ -66,6 +67,7 @@ retrofit = { module = "com.squareup.retrofit2:retrofit", version.ref = "retrofit
 retrofit_converter_gson = { module = "com.squareup.retrofit2:converter-gson", version.ref = "retrofit" }
 agp = { module = "com.android.tools.build:gradle", version.ref = "agp" }
 kgp = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
+zxing = { module = "com.google.zxing:core", version.ref = "zxing" }
 
 [plugins]
 detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }

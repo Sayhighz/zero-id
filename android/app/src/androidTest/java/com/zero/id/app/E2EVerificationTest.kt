@@ -18,7 +18,7 @@ import java.util.concurrent.TimeUnit
 
 /**
  * End-to-End test for the complete verification flow
- * Prerequisites: Backend server must be running at http://10.0.2.2:3000
+ * Prerequisites: Backend server must be running at http://192.168.1.116:3000
  *
  * To run backend:
  * cd backend-verifier
@@ -155,7 +155,7 @@ class E2EVerificationTest {
 
         // This test won't fail if backend is not running, just logs a warning
         if (!isReachable) {
-            println("WARNING: Backend server is not reachable at http://10.0.2.2:3000")
+            println("WARNING: Backend server is not reachable at http://192.168.1.116:3000")
             println("To run full E2E tests, start the backend server:")
             println("  cd backend-verifier")
             println("  node server.js")
