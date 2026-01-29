@@ -2,6 +2,7 @@ package com.zero.id.app.ui.screens.qr
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
@@ -54,37 +55,36 @@ fun QRScannerScreen(onQrCodeScanned: (String) -> Unit) {
 
     Column(modifier = Modifier.fillMaxSize()) {
         if (hasCameraPermission) {
-            val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
-            val cameraProvider = remember(cameraProviderFuture) { cameraProviderFuture.get() }
-            val previewView = remember { PreviewView(context) }
-            val imageAnalysis = remember {
-                ImageAnalysis.Builder()
-                    .build()
-                    .also {
-                        it.setAnalyzer(Executors.newSingleThreadExecutor(), QrCodeAnalyzer(onQrCodeScanned))
-                    }
-            }
-
             AndroidView(
-                factory = { previewView },
-                modifier = Modifier.fillMaxSize(),
-                update = {
-                    val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
-                    val preview = Preview.Builder().build().also {
-                        it.setSurfaceProvider(previewView.surfaceProvider)
-                    }
-                    try {
-                        cameraProvider.unbindAll()
-                        cameraProvider.bindToLifecycle(
-                            lifecycleOwner,
-                            cameraSelector,
-                            preview,
-                            imageAnalysis
-                        )
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    }
-                }
+                factory = { context ->
+                    val previewView = PreviewView(context)
+                    val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
+                    cameraProviderFuture.addListener({
+                        val cameraProvider = cameraProviderFuture.get()
+                        val preview = Preview.Builder().build().also {
+                            it.setSurfaceProvider(previewView.surfaceProvider)
+                        }
+                        val imageAnalysis = ImageAnalysis.Builder()
+                            .build()
+                            .also {
+                                it.setAnalyzer(Executors.newSingleThreadExecutor(), QrCodeAnalyzer(onQrCodeScanned))
+                            }
+                        val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+                        try {
+                            cameraProvider.unbindAll()
+                            cameraProvider.bindToLifecycle(
+                                lifecycleOwner,
+                                cameraSelector,
+                                preview,
+                                imageAnalysis
+                            )
+                        } catch (e: Exception) {
+                            Log.e("QRScannerScreen", "Camera binding failed", e)
+                        }
+                    }, ContextCompat.getMainExecutor(context))
+                    previewView
+                },
+                modifier = Modifier.fillMaxSize()
             )
         } else {
             Text("Camera permission is required to scan QR codes.", modifier = Modifier.padding(16.dp))
@@ -97,23 +97,37 @@ private class QrCodeAnalyzer(private val onQrCodeScanned: (String) -> Unit) : Im
         .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
         .build()
     private val scanner = BarcodeScanning.getClient(options)
+    private var isScanning = true
 
     @androidx.annotation.OptIn(androidx.camera.core.ExperimentalGetImage::class)
     override fun analyze(imageProxy: ImageProxy) {
+        if (!isScanning) {
+            imageProxy.close()
+            return
+        }
+
         val mediaImage = imageProxy.image
         if (mediaImage != null) {
             val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
             scanner.process(image)
                 .addOnSuccessListener { barcodes ->
-                    for (barcode in barcodes) {
-                        barcode.rawValue?.let {
-                            onQrCodeScanned(it)
+                    if (barcodes.isNotEmpty()) {
+                        barcodes.firstOrNull()?.rawValue?.let {
+                            if (isScanning) {
+                                isScanning = false
+                                onQrCodeScanned(it)
+                            }
                         }
                     }
+                }
+                .addOnFailureListener { e ->
+                    Log.e("QrCodeAnalyzer", "Barcode scanning failed.", e)
                 }
                 .addOnCompleteListener {
                     imageProxy.close()
                 }
+        } else {
+            imageProxy.close()
         }
     }
 }

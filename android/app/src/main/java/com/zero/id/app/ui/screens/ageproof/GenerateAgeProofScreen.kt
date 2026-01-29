@@ -1,118 +1,95 @@
 package com.zero.id.app.ui.screens.ageproof
 
-import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.material3.AlertDialog
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.platform.LocalContext
-import com.google.mlkit.vision.barcode.BarcodeScannerOptions
-import com.google.mlkit.vision.barcode.BarcodeScanning
-import com.google.mlkit.vision.barcode.common.Barcode
-import com.google.mlkit.vision.common.InputImage
-import java.io.IOException
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
+import com.google.gson.Gson
+import com.zero.id.app.ui.screens.proof.ProofGenerationViewModel
+import com.zero.id.network.VerificationRequest
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GenerateAgeProofScreen(
-    onNavigateToProofGeneration: () -> Unit,
-    onNavigateToQrScanner: () -> Unit,
-    onVerifyFromJson: (String) -> Unit
+    viewModel: ProofGenerationViewModel,
+    onNavigateBack: () -> Unit,
+    onProofGenerated: (String) -> Unit
 ) {
-    var showMethodDialog by remember { mutableStateOf(false) }
-    var showQrSourceDialog by remember { mutableStateOf(false) }
-    val context = LocalContext.current
+    var minAge by remember { mutableStateOf("") }
+    val proof by viewModel.proof.collectAsState()
+    val isGenerating by viewModel.isGenerating.collectAsState()
 
-    val pickImageLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent(),
-        onResult = { uri: Uri? ->
-            if (uri != null) {
-                try {
-                    val inputImage = InputImage.fromFilePath(context, uri)
-                    val options = BarcodeScannerOptions.Builder()
-                        .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
-                        .build()
-                    val scanner = BarcodeScanning.getClient(options)
-                    scanner.process(inputImage)
-                        .addOnSuccessListener { barcodes ->
-                            barcodes.firstOrNull()?.rawValue?.let {
-                                onVerifyFromJson(it)
-                            }
-                        }
-                        .addOnFailureListener {
-                            // Task failed with an exception
-                            it.printStackTrace()
-                        }
-                } catch (e: IOException) {
-                    e.printStackTrace()
+    // When proof is generated, navigate
+    LaunchedEffect(proof) {
+        proof?.let {
+            // Reset proof in ViewModel to avoid re-triggering
+            viewModel.resetProof()
+            onProofGenerated(it)
+        }
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Generate Age Proof") },
+            )
+        }
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            OutlinedTextField(
+                value = minAge,
+                onValueChange = { minAge = it.filter { c -> c.isDigit() } },
+                label = { Text("Minimum Age Requirement") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+            Button(
+                onClick = {
+                    minAge.toIntOrNull()?.let {
+                        viewModel.generateAgeProof(it)
+                    }
+                },
+                enabled = !isGenerating && minAge.isNotBlank(),
+                modifier = Modifier.fillMaxWidth().height(48.dp)
+            ) {
+                if (isGenerating) {
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                } else {
+                    Text("Generate Proof QR Code")
                 }
             }
         }
-    )
-
-    Button(onClick = { showMethodDialog = true }) {
-        Text("Generate Age Proof")
-    }
-
-    if (showMethodDialog) {
-        AlertDialog(
-            onDismissRequest = { showMethodDialog = false },
-            title = { Text("Choose verification method") },
-            text = { Text("You can generate a proof manually or scan a QR code.") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showMethodDialog = false
-                        onNavigateToProofGeneration()
-                    }
-                ) {
-                    Text("Manual")
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        showMethodDialog = false
-                        showQrSourceDialog = true
-                    }
-                ) {
-                    Text("QR Code")
-                }
-            }
-        )
-    }
-
-    if (showQrSourceDialog) {
-        AlertDialog(
-            onDismissRequest = { showQrSourceDialog = false },
-            title = { Text("Choose QR Code Source") },
-            text = { Text("Scan a new QR code using the camera or select an image from your gallery.") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showQrSourceDialog = false
-                        onNavigateToQrScanner()
-                    }
-                ) {
-                    Text("Use Camera")
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        showQrSourceDialog = false
-                        pickImageLauncher.launch("image/*")
-                    }
-                ) {
-                    Text("From Picture")
-                }
-            }
-        )
     }
 }

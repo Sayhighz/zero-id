@@ -7,8 +7,6 @@ import com.google.gson.Gson
 import com.zero.id.app.ServiceLocator
 import com.zero.id.app.zkp.ProofResult
 import com.zero.id.app.zkp.ZKProver
-import com.zero.id.library.model.ProofData
-import com.zero.id.network.Details
 import com.zero.id.network.VerificationRequest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -35,6 +33,7 @@ class ProofGenerationViewModel(
     private val zkProver: ZKProver? = null
 ) : AndroidViewModel(application) {
 
+    // --- Existing State for Manual Proof Generation ---
     private val _state = MutableStateFlow<ProofGenerationState>(ProofGenerationState.Idle)
     val state: StateFlow<ProofGenerationState> = _state.asStateFlow()
 
@@ -44,6 +43,13 @@ class ProofGenerationViewModel(
     private val _minAge = MutableStateFlow("")
     val minAge: StateFlow<String> = _minAge.asStateFlow()
 
+    // --- New State for Simplified Proof Generation ---
+    private val _isGenerating = MutableStateFlow(false)
+    val isGenerating: StateFlow<Boolean> = _isGenerating.asStateFlow()
+
+    private val _proof = MutableStateFlow<String?>(null)
+    val proof: StateFlow<String?> = _proof.asStateFlow()
+
     private val currentYear = Calendar.getInstance().get(Calendar.YEAR)
     private val profileStorage = ServiceLocator.provideProfileStorage(application)
 
@@ -52,9 +58,6 @@ class ProofGenerationViewModel(
         loadUserProfile()
     }
 
-    /**
-     * Load user profile and set initial birth year
-     */
     private fun loadUserProfile() {
         val profile = profileStorage.getProfile()
         if (profile.birthYear > 0) {
@@ -62,27 +65,59 @@ class ProofGenerationViewModel(
         }
     }
 
-    /**
-     * Update birth year input
-     */
+    // --- Functions for Simplified Age Proof ---
+    fun generateAgeProof(minAge: Int) {
+        if (zkProver == null) {
+            // Handle error - perhaps update a separate error state flow
+            return
+        }
+
+        val userBirthYear = profileStorage.getProfile().birthYear
+        if (userBirthYear <= 0) {
+            // Handle error: user profile is not complete
+            return
+        }
+
+        _isGenerating.value = true
+        viewModelScope.launch {
+            try {
+                val result = zkProver.generateProof(
+                    birthYear = userBirthYear,
+                    minAge = minAge,
+                    currentYear = currentYear
+                )
+                if (result is ProofResult.Success) {
+                    val verificationRequest = VerificationRequest(
+                        proof = Gson().fromJson(Gson().toJson(result.proof), com.zero.id.network.Proof::class.java),
+                        publicSignals = result.publicSignals
+                    )
+                    _proof.value = Gson().toJson(verificationRequest)
+                } else {
+                    // Handle error, maybe expose it via another StateFlow
+                }
+            } finally {
+                _isGenerating.value = false
+            }
+        }
+    }
+
+    fun resetProof() {
+        _proof.value = null
+    }
+
+    // --- Existing functions for manual proof generation ---
     fun updateBirthYear(year: String) {
         if (year.isEmpty() || (year.all { it.isDigit() } && year.length <= 4)) {
             _birthYear.value = year
         }
     }
 
-    /**
-     * Update minimum age input
-     */
     fun updateMinAge(age: String) {
         if (age.isEmpty() || (age.all { it.isDigit() } && age.length <= 3)) {
             _minAge.value = age
         }
     }
 
-    /**
-     * Validate inputs before generating proof
-     */
     fun validateInputs(): String? {
         val birthYearInt = _birthYear.value.toIntOrNull()
         val minAgeInt = _minAge.value.toIntOrNull()
@@ -100,9 +135,6 @@ class ProofGenerationViewModel(
         }
     }
 
-    /**
-     * Generate zero-knowledge proof with current inputs
-     */
     fun generateProof() {
         val validationError = validateInputs()
         if (validationError != null) {

@@ -110,6 +110,23 @@ app.post('/api/verify-citizen', async (req, res) => {
     }
 });
 
+// นี่คือตัวอย่างโค้ดฝั่งเซิร์ฟเวอร์ (เช่น Node.js)
+
+// สร้าง Endpoint รอรับข้อมูลที่ /api/submit-data ด้วย method POST
+app.post('/api/submit-data', (req, res) => {  // ข้อมูลที่แอปส่งมาจะอยู่ใน req.body
+  const userData = req.body;
+
+  // แสดงผลใน console ของเซิร์ฟเวอร์
+  console.log('ได้รับข้อมูลผู้ใช้:', userData);
+
+  // --- คุณสามารถเพิ่มตรรกะของคุณตรงนี้ ---
+  // เช่น ตรวจสอบข้อมูล, บันทึกลง Database
+  // ------------------------------------
+
+  // เมื่อทำสำเร็จ ส่งสถานะ 200 OK กลับไปให้แอป
+  res.status(200).send({ message: 'ได้รับข้อมูลเรียบร้อย' });
+});
+
 app.listen(port, () => {
     console.log(`ZeroID Verifier running on http://localhost:${port}`);
 });
