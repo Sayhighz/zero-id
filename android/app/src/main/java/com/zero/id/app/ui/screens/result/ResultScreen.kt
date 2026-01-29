@@ -26,6 +26,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.zero.id.app.model.UserProfile
 import com.zero.id.app.ui.theme.ErrorRed
 import com.zero.id.app.ui.theme.SuccessGreen
 import com.zero.id.app.ui.theme.ZeroIDTheme
@@ -40,6 +41,7 @@ fun ResultScreen(
     details: Details?,
     minAge: String?,
     birthYear: String?,
+    userProfile: UserProfile?,
     onNavigateHome: () -> Unit,
     onRetry: () -> Unit
 ) {
@@ -89,6 +91,7 @@ fun ResultScreen(
                     minAgeFallback = minAge,
                     currentYearFallback = currentYear,
                     userAge = userAge,
+                    userProfile = userProfile,
                     onNavigateHome = onNavigateHome
                 )
             } else {
@@ -147,6 +150,7 @@ private fun SuccessContent(
     minAgeFallback: String?,
     currentYearFallback: String,
     userAge: Int?,
+    userProfile: UserProfile?,
     onNavigateHome: () -> Unit
 ) {
     val isVerified = details?.isOldEnough == true
@@ -159,6 +163,11 @@ private fun SuccessContent(
     )
 
     Spacer(modifier = Modifier.height(32.dp))
+
+    if (userProfile != null) {
+        UserProfileCard(userProfile = userProfile)
+        Spacer(modifier = Modifier.height(16.dp))
+    }
 
     VerificationDetailsCard(
         isVerified = isVerified,
@@ -177,6 +186,37 @@ private fun SuccessContent(
         secondaryText = "Share Proof",
         secondaryIcon = Icons.Default.Share
     )
+}
+
+@Composable
+private fun UserProfileCard(userProfile: UserProfile) {
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(24.dp)
+        ) {
+            Text(
+                text = "User Information",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            DetailItem(label = "Full Name", value = userProfile.fullName)
+            DetailItem(label = "Date of Birth", value = userProfile.getFormattedBirthDate())
+            DetailItem(label = "Address", value = userProfile.address)
+            DetailItem(label = "ID Number", value = userProfile.idNumber)
+            DetailItem(label = "Phone Number", value = userProfile.phoneNumber)
+        }
+    }
 }
 
 @Composable
@@ -359,6 +399,7 @@ fun ResultScreenSuccessPreview() {
             details = Details(isOldEnough = true, minAge = "18", currentYear = "2025"),
             minAge = "18",
             birthYear = "2005",
+            userProfile = UserProfile(),
             onNavigateHome = {},
             onRetry = {}
         )

@@ -1,17 +1,27 @@
 package com.zero.id.app.ui.screens.home
 
+import android.graphics.BitmapFactory
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.google.mlkit.vision.barcode.BarcodeScanning
+import com.google.mlkit.vision.common.InputImage
 import com.zero.id.app.ui.screens.ageproof.GenerateAgeProofScreen
 import com.zero.id.app.ui.theme.ZeroIDTheme
+import kotlinx.coroutines.launch
 
 /**
  * Home screen of ZeroID app
@@ -24,6 +34,33 @@ fun HomeScreen(
     onNavigateToQrScanner: () -> Unit,
     onVerifyFromJson: (String) -> Unit
 ) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+
+    val imagePickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        uri?.let {
+            try {
+                val inputStream = context.contentResolver.openInputStream(it)
+                val bitmap = BitmapFactory.decodeStream(inputStream)
+                val image = InputImage.fromBitmap(bitmap, 0)
+                val scanner = BarcodeScanning.getClient()
+                scanner.process(image)
+                    .addOnSuccessListener { barcodes ->
+                        if (barcodes.isNotEmpty()) {
+                            barcodes.first().rawValue?.let {
+                                onVerifyFromJson(it)
+                            }
+                        }
+                    }
+                    .addOnFailureListener { e ->
+                        // Handle exceptions
+                    }
+            } catch (e: Exception) {
+                // Handle exceptions
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -77,8 +114,18 @@ fun HomeScreen(
             GenerateAgeProofScreen(
                 onNavigateToProofGeneration = onNavigateToProofGeneration,
                 onNavigateToQrScanner = onNavigateToQrScanner,
-                onVerifyFromJson = onVerifyFromJson
             )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            OutlinedButton(
+                onClick = { imagePickerLauncher.launch("image/*") },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Default.Image, contentDescription = "Scan from image")
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Scan QR from Image")
+            }
 
             Spacer(modifier = Modifier.height(32.dp))
 

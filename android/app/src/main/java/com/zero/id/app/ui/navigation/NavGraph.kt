@@ -20,6 +20,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.google.gson.Gson
+import com.zero.id.app.model.UserProfile
+import com.zero.id.app.security.ProfileStorage
 import com.zero.id.app.ui.screens.home.HomeScreen
 import com.zero.id.app.ui.screens.proof.ProofGenerationScreen
 import com.zero.id.app.ui.screens.proof.ProofGenerationViewModel
@@ -40,6 +42,7 @@ fun NavGraph(
     startDestination: String = Screen.Home.route
 ) {
     val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     NavHost(
         navController = navController,
@@ -60,9 +63,18 @@ fun NavGraph(
                             val minAge = verificationRequest.publicSignals[1]
                             val response = RetrofitClient.instance.verify(verificationRequest)
                             if (response.isSuccessful && response.body() != null) {
-                                val detailsJson = Gson().toJson(response.body()!!.details)
-                                // แก้ไขจุดที่ 1: เปลี่ยนจาก 2000 เป็น 2005
-                                navController.navigate(Screen.Result.createRoute(true, response.body()!!.message, detailsJson, minAge = minAge, birthYear = "2005")) {
+                                val details = response.body()!!.details
+                                val detailsJson = Gson().toJson(details)
+                                val userProfile = ProfileStorage(context).getProfile()
+                                val userProfileJson = if (details?.isOldEnough == true) Gson().toJson(userProfile) else null
+
+                                navController.navigate(
+                                    Screen.Result.createRoute(
+                                        true, response.body()!!.message, detailsJson,
+                                        minAge = minAge, birthYear = userProfile.birthYear.toString(),
+                                        userProfileJson = userProfileJson
+                                    )
+                                ) {
                                     popUpTo(Screen.Home.route)
                                 }
                             } else {
@@ -81,7 +93,6 @@ fun NavGraph(
         }
 
         composable(route = Screen.ProofGeneration.route) {
-            val context = LocalContext.current
             val webView = remember { WebView(context) }
             var zkProver by remember { mutableStateOf<ZKProver?>(null) }
             var isInitialized by remember { mutableStateOf(false) }
@@ -160,7 +171,8 @@ fun NavGraph(
                 navArgument("message") { type = NavType.StringType },
                 navArgument("details") { type = NavType.StringType; nullable = true },
                 navArgument("minAge") { type = NavType.StringType; nullable = true },
-                navArgument("birthYear") { type = NavType.StringType; nullable = true }
+                navArgument("birthYear") { type = NavType.StringType; nullable = true },
+                navArgument("userProfileJson") { type = NavType.StringType; nullable = true }
             )
         ) { backStackEntry ->
             val isSuccess = backStackEntry.arguments?.getBoolean("isSuccess") ?: false
@@ -169,6 +181,8 @@ fun NavGraph(
             val details = if (detailsJson != null) Gson().fromJson(detailsJson, Details::class.java) else null
             val minAge = backStackEntry.arguments?.getString("minAge")
             val birthYear = backStackEntry.arguments?.getString("birthYear")
+            val userProfileJson = backStackEntry.arguments?.getString("userProfileJson")
+            val userProfile = if (userProfileJson != null) Gson().fromJson(userProfileJson, UserProfile::class.java) else null
 
             ResultScreen(
                 isSuccess = isSuccess,
@@ -176,6 +190,7 @@ fun NavGraph(
                 details = details,
                 minAge = minAge,
                 birthYear = birthYear,
+                userProfile = userProfile,
                 onNavigateHome = {
                     navController.navigate(Screen.Home.route) {
                         popUpTo(Screen.Home.route) { inclusive = true }
@@ -193,16 +208,28 @@ fun NavGraph(
                     try {
                         val verificationRequest = Gson().fromJson(it, VerificationRequest::class.java)
                         val minAge = verificationRequest.publicSignals[1]
-                        // แก้ไขจุดที่ 2: เป็น 2005 เรียบร้อยแล้ว
-                        val birthYear = "2005"
                         val response = RetrofitClient.instance.verify(verificationRequest)
                         if (response.isSuccessful && response.body() != null) {
-                            val detailsJson = Gson().toJson(response.body()!!.details)
-                            navController.navigate(Screen.Result.createRoute(true, response.body()!!.message, detailsJson, minAge = minAge, birthYear = birthYear)) {
+                            val details = response.body()!!.details
+                            val detailsJson = Gson().toJson(details)
+                            val userProfile = ProfileStorage(context).getProfile()
+                            val userProfileJson = if (details?.isOldEnough == true) Gson().toJson(userProfile) else null
+                            navController.navigate(
+                                Screen.Result.createRoute(
+                                    true, response.body()!!.message, detailsJson,
+                                    minAge = minAge, birthYear = userProfile.birthYear.toString(),
+                                    userProfileJson = userProfileJson
+                                )
+                            ) {
                                 popUpTo(Screen.Home.route)
                             }
                         } else {
-                            navController.navigate(Screen.Result.createRoute(false, "Verification failed", minAge = minAge, birthYear = birthYear)) {
+                            navController.navigate(
+                                Screen.Result.createRoute(
+                                    false, "Verification failed",
+                                    minAge = minAge, birthYear = ProfileStorage(context).getProfile().birthYear.toString()
+                                )
+                            ) {
                                 popUpTo(Screen.Home.route)
                             }
                         }
