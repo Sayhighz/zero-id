@@ -4,7 +4,10 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
 object RetrofitClient {
-    private const val BASE_URL = "http://10.0.2.2:3000/" // ไอพีสำหรับ Emulator ต่อเข้าเครื่องตัวเอง
+    // IMPORTANT: REPLACE WITH YOUR COMPUTER'S LOCAL IP ADDRESS
+    // This address is for connecting from a real device on the same Wi-Fi network.
+    // Find your IP using 'ipconfig' (Windows) or 'ifconfig' (macOS/Linux).
+    private const val BASE_URL = "http://192.168.8.162:3000/"
 
     val instance: ZeroIdApi by lazy {
         val retrofit = Retrofit.Builder()

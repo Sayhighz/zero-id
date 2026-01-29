@@ -1,5 +1,8 @@
 package com.zero.id.app.ui.navigation
 
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
+
 /**
  * Sealed class representing all screens in the ZeroID app
  */
@@ -16,7 +19,6 @@ sealed class Screen(val route: String) {
 
     /**
      * Result screen - displays proof generation result
-     * @param isSuccess Whether the operation was successful
      */
     object Result : Screen("result/{isSuccess}/{message}?details={details}&minAge={minAge}&birthYear={birthYear}&userProfileJson={userProfileJson}") {
         fun createRoute(
@@ -29,10 +31,10 @@ sealed class Screen(val route: String) {
         ): String {
             val baseRoute = "result/$isSuccess/$message"
             val queryParams = mutableListOf<String>()
-            details?.let { queryParams.add("details=$it") }
-            minAge?.let { queryParams.add("minAge=$it") }
-            birthYear?.let { queryParams.add("birthYear=$it") }
-            userProfileJson?.let { queryParams.add("userProfileJson=$it") }
+            details?.let { queryParams.add("details=${URLEncoder.encode(it, StandardCharsets.UTF_8.toString())}") }
+            minAge?.let { queryParams.add("minAge=${URLEncoder.encode(it, StandardCharsets.UTF_8.toString())}") }
+            birthYear?.let { queryParams.add("birthYear=${URLEncoder.encode(it, StandardCharsets.UTF_8.toString())}") }
+            userProfileJson?.let { queryParams.add("userProfileJson=${URLEncoder.encode(it, StandardCharsets.UTF_8.toString())}") }
 
             return if (queryParams.isNotEmpty()) {
                 "$baseRoute?${queryParams.joinToString("&")}"
@@ -43,21 +45,17 @@ sealed class Screen(val route: String) {
     }
 
     /**
+     * Consent screen for data sharing requests
+     */
+    object Consent : Screen("consent/{requestJson}") {
+        fun createRoute(requestJson: String): String {
+            val encodedJson = URLEncoder.encode(requestJson, StandardCharsets.UTF_8.toString())
+            return "consent/$encodedJson"
+        }
+    }
+
+    /**
      * QR scanner screen - scans QR codes for verification
      */
     object QRScanner : Screen("qr_scanner")
-
-    companion object {
-        /**
-         * Get all screen routes for navigation graph setup
-         */
-        fun getAllRoutes(): List<String> {
-            return listOf(
-                Home.route,
-                ProofGeneration.route,
-                Result.route,
-                QRScanner.route
-            )
-        }
-    }
 }

@@ -1,7 +1,7 @@
 package com.zero.id.app.ui.screens.result
 
+import android.content.Intent
 import androidx.compose.animation.*
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -21,16 +21,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.FileProvider
 import com.zero.id.app.model.UserProfile
 import com.zero.id.app.ui.theme.ErrorRed
 import com.zero.id.app.ui.theme.SuccessGreen
 import com.zero.id.app.ui.theme.ZeroIDTheme
 import com.zero.id.network.Details
+import java.io.File
 import java.util.Calendar
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -45,6 +48,8 @@ fun ResultScreen(
     onNavigateHome: () -> Unit,
     onRetry: () -> Unit
 ) {
+    val context = LocalContext.current
+
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -78,7 +83,6 @@ fun ResultScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Check verified status: must have successful API AND positive result
             val isVerified = isSuccess && details?.isOldEnough == true
             ResultStatusHeader(isSuccess = isVerified)
 
@@ -92,7 +96,47 @@ fun ResultScreen(
                     currentYearFallback = currentYear,
                     userAge = userAge,
                     userProfile = userProfile,
-                    onNavigateHome = onNavigateHome
+                    onNavigateHome = onNavigateHome,
+                    onShareClick = {
+                        val contentBuilder = StringBuilder()
+                        contentBuilder.append("--- Verification Result ---\n")
+                        contentBuilder.append("Status: ${if (isVerified) "Verified" else "Not Verified"}\n")
+                        contentBuilder.append("Minimum Required Age: ${details?.minAge ?: minAge ?: "N/A"}\n")
+                        contentBuilder.append("Verification Year: ${details?.currentYear ?: currentYear}\n\n")
+
+                        userProfile?.let {
+                            contentBuilder.append("--- Shared Personal Information ---\n")
+                            contentBuilder.append("Full Name: ${it.fullName}\n")
+                            contentBuilder.append("Date of Birth: ${it.getFormattedBirthDate()}\n")
+                            contentBuilder.append("Address: ${it.address}\n")
+                            contentBuilder.append("ID Number: ${it.idNumber}\n")
+                            contentBuilder.append("Phone Number: ${it.phoneNumber}\n")
+                        }
+
+                        val proofContent = contentBuilder.toString()
+                        val proofFile = File(context.cacheDir, "proofs/proof_details.txt")
+                        proofFile.parentFile?.mkdirs()
+                        proofFile.writeText(proofContent)
+
+                        val fileUri = FileProvider.getUriForFile(context, "${context.packageName}.provider", proofFile)
+
+                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_SUBJECT, "ZeroID Verification Details")
+                            putExtra(Intent.EXTRA_TEXT, proofContent)
+                            putExtra(Intent.EXTRA_STREAM, fileUri)
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+
+                        val chooserIntent = Intent.createChooser(shareIntent, "Share Proof Details")
+                        val resInfoList = context.packageManager.queryIntentActivities(chooserIntent, 0)
+                        for (resolveInfo in resInfoList) {
+                            val packageName = resolveInfo.activityInfo.packageName
+                            context.grantUriPermission(packageName, fileUri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+
+                        context.startActivity(chooserIntent)
+                    }
                 )
             } else {
                 ErrorContent(
@@ -110,6 +154,7 @@ fun ResultScreen(
     }
 }
 
+// ... (The rest of the file remains the same)
 @Composable
 private fun ResultStatusHeader(isSuccess: Boolean) {
     val backgroundColor = if (isSuccess) SuccessGreen else ErrorRed
@@ -151,7 +196,8 @@ private fun SuccessContent(
     currentYearFallback: String,
     userAge: Int?,
     userProfile: UserProfile?,
-    onNavigateHome: () -> Unit
+    onNavigateHome: () -> Unit,
+    onShareClick: () -> Unit
 ) {
     val isVerified = details?.isOldEnough == true
 
@@ -182,7 +228,7 @@ private fun SuccessContent(
         onPrimaryClick = onNavigateHome,
         primaryText = "Go Home",
         primaryIcon = Icons.Default.Home,
-        onSecondaryClick = { /* Share logic */ },
+        onSecondaryClick = onShareClick,
         secondaryText = "Share Proof",
         secondaryIcon = Icons.Default.Share
     )

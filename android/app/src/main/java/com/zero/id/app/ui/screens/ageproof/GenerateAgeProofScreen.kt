@@ -22,7 +22,8 @@ import java.io.IOException
 @Composable
 fun GenerateAgeProofScreen(
     onNavigateToProofGeneration: () -> Unit,
-    onNavigateToQrScanner: () -> Unit
+    onNavigateToQrScanner: () -> Unit,
+    onVerifyFromJson: (String) -> Unit
 ) {
     var showMethodDialog by remember { mutableStateOf(false) }
     var showQrSourceDialog by remember { mutableStateOf(false) }
@@ -41,7 +42,7 @@ fun GenerateAgeProofScreen(
                     scanner.process(inputImage)
                         .addOnSuccessListener { barcodes ->
                             barcodes.firstOrNull()?.rawValue?.let {
-                                // onVerifyFromJson(it) // This was removed
+                                onVerifyFromJson(it)
                             }
                         }
                         .addOnFailureListener {
