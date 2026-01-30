@@ -5,11 +5,11 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.gson.Gson
 import com.zero.id.app.ServiceLocator
+import com.zero.id.app.network.Proof
+import com.zero.id.app.network.RetrofitClient
+import com.zero.id.app.network.VerificationRequest
 import com.zero.id.app.zkp.ProofResult
 import com.zero.id.app.zkp.ZKProver
-import com.zero.id.library.model.ProofData
-import com.zero.id.network.Details
-import com.zero.id.network.VerificationRequest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -131,10 +131,10 @@ class ProofGenerationViewModel(
                 when (result) {
                     is ProofResult.Success -> {
                         val verificationRequest = VerificationRequest(
-                            proof = Gson().fromJson(Gson().toJson(result.proof), com.zero.id.network.Proof::class.java),
+                            proof = Gson().fromJson(Gson().toJson(result.proof), Proof::class.java),
                             publicSignals = result.publicSignals
                         )
-                        _state.value = ProofGenerationState.Success(verificationRequest)
+                        verifyProof(verificationRequest)
                     }
                     is ProofResult.Error -> {
                         _state.value = ProofGenerationState.Error(result.message)
@@ -144,6 +144,21 @@ class ProofGenerationViewModel(
                 _state.value = ProofGenerationState.Error(
                     e.message ?: "Unknown error occurred during proof generation"
                 )
+            }
+        }
+    }
+
+    private fun verifyProof(request: VerificationRequest) {
+        viewModelScope.launch {
+            try {
+                val response = RetrofitClient.instance.verify(request)
+                if (response.success) {
+                    _state.value = ProofGenerationState.Success(request)
+                } else {
+                    _state.value = ProofGenerationState.Error(response.message)
+                }
+            } catch (e: Exception) {
+                _state.value = ProofGenerationState.Error(e.message ?: "Unknown error verifying proof")
             }
         }
     }

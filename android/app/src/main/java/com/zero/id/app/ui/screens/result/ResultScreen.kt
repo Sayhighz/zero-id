@@ -13,7 +13,6 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,21 +26,20 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zero.id.app.model.UserProfile
+import com.zero.id.app.network.VerificationDetails
 import com.zero.id.app.ui.theme.ErrorRed
 import com.zero.id.app.ui.theme.SuccessGreen
 import com.zero.id.app.ui.theme.ZeroIDTheme
-import com.zero.id.network.Details
-import java.util.Calendar
+import java.text.NumberFormat
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ResultScreen(
     isSuccess: Boolean,
     message: String,
-    details: Details?,
-    minAge: String?,
-    birthYear: String?,
-    userProfile: UserProfile?,
+    verificationDetails: VerificationDetails?,
+    userProfile: UserProfile? = null,
     onNavigateHome: () -> Unit,
     onRetry: () -> Unit
 ) {
@@ -71,35 +69,21 @@ fun ResultScreen(
                 .padding(horizontal = 24.dp, vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            val currentYear = Calendar.getInstance().get(Calendar.YEAR).toString()
-            val userAge = if (!birthYear.isNullOrEmpty()) {
-                Calendar.getInstance().get(Calendar.YEAR) - birthYear.toInt()
-            } else null
-
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Check verified status: must have successful API AND positive result
-            val isVerified = isSuccess && details?.isOldEnough == true
-            ResultStatusHeader(isSuccess = isVerified)
+            ResultStatusHeader(isSuccess = isSuccess)
 
             Spacer(modifier = Modifier.height(32.dp))
 
             if (isSuccess) {
                 SuccessContent(
-                    message = message,
-                    details = details,
-                    minAgeFallback = minAge,
-                    currentYearFallback = currentYear,
-                    userAge = userAge,
+                    verificationDetails = verificationDetails,
                     userProfile = userProfile,
                     onNavigateHome = onNavigateHome
                 )
             } else {
                 ErrorContent(
                     message = message,
-                    minAge = minAge,
-                    userAge = userAge,
-                    currentYear = currentYear,
                     onRetry = onRetry,
                     onNavigateHome = onNavigateHome
                 )
@@ -145,51 +129,40 @@ private fun ResultStatusHeader(isSuccess: Boolean) {
 
 @Composable
 private fun SuccessContent(
-    message: String,
-    details: Details?,
-    minAgeFallback: String?,
-    currentYearFallback: String,
-    userAge: Int?,
+    verificationDetails: VerificationDetails?,
     userProfile: UserProfile?,
     onNavigateHome: () -> Unit
 ) {
-    val isVerified = details?.isOldEnough == true
-
     Text(
-        text = if (isVerified) "Your age is verified" else "Age requirement not met",
+        text = "Verification successful",
         style = MaterialTheme.typography.titleMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         textAlign = TextAlign.Center
     )
 
     Spacer(modifier = Modifier.height(32.dp))
-
-    if (userProfile != null) {
-        UserProfileCard(userProfile = userProfile)
+    
+    if (verificationDetails != null) {
+        VerificationDetailsCard(verificationDetails = verificationDetails)
         Spacer(modifier = Modifier.height(16.dp))
     }
 
-    VerificationDetailsCard(
-        isVerified = isVerified,
-        userAge = userAge,
-        minAge = details?.minAge ?: minAgeFallback ?: "N/A",
-        currentYear = details?.currentYear ?: currentYearFallback
-    )
+    if (userProfile != null) {
+        UserProfileDetailsCard(userProfile = userProfile)
+        Spacer(modifier = Modifier.height(16.dp))
+    }
 
-    Spacer(modifier = Modifier.height(40.dp))
+    Spacer(modifier = Modifier.height(24.dp))
 
     ActionButtons(
         onPrimaryClick = onNavigateHome,
         primaryText = "Go Home",
         primaryIcon = Icons.Default.Home,
-        onSecondaryClick = { /* Share logic */ },
-        secondaryText = "Share Proof",
-        secondaryIcon = Icons.Default.Share
     )
 }
 
 @Composable
-private fun UserProfileCard(userProfile: UserProfile) {
+private fun VerificationDetailsCard(verificationDetails: VerificationDetails) {
     ElevatedCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
@@ -202,7 +175,7 @@ private fun UserProfileCard(userProfile: UserProfile) {
             modifier = Modifier.padding(24.dp)
         ) {
             Text(
-                text = "User Information",
+                text = "Verification Proof",
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
@@ -210,11 +183,44 @@ private fun UserProfileCard(userProfile: UserProfile) {
 
             Spacer(modifier = Modifier.height(20.dp))
 
+            DetailItem(label = "Is Old Enough", value = verificationDetails.isOldEnough.toString(), color = if (verificationDetails.isOldEnough) SuccessGreen else ErrorRed)
+            DetailItem(label = "Minimum Age", value = verificationDetails.minAge)
+            DetailItem(label = "Current Year", value = verificationDetails.currentYear)
+        }
+    }
+}
+
+@Composable
+private fun UserProfileDetailsCard(userProfile: UserProfile) {
+    val currencyFormat = NumberFormat.getCurrencyInstance(Locale("th", "TH"))
+    
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.2f)
+        ),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(24.dp)
+        ) {
+            Text(
+                text = "User Information",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.secondary
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
+
             DetailItem(label = "Full Name", value = userProfile.fullName)
-            DetailItem(label = "Date of Birth", value = userProfile.getFormattedBirthDate())
-            DetailItem(label = "Address", value = userProfile.address)
-            DetailItem(label = "ID Number", value = userProfile.idNumber)
-            DetailItem(label = "Phone Number", value = userProfile.phoneNumber)
+            DetailItem(
+                label = "Salary", 
+                value = "${NumberFormat.getNumberInstance().format(userProfile.salary)} THB",
+                color = MaterialTheme.colorScheme.primary
+            )
+            DetailItem(label = "Phone", value = userProfile.phoneNumber)
         }
     }
 }
@@ -222,28 +228,15 @@ private fun UserProfileCard(userProfile: UserProfile) {
 @Composable
 private fun ErrorContent(
     message: String,
-    minAge: String?,
-    userAge: Int?,
-    currentYear: String,
     onRetry: () -> Unit,
     onNavigateHome: () -> Unit
 ) {
     Text(
-        text = message.ifEmpty { "We couldn't verify your age" },
+        text = message.ifEmpty { "We couldn't verify your proof" },
         style = MaterialTheme.typography.bodyLarge,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         textAlign = TextAlign.Center,
         modifier = Modifier.padding(horizontal = 16.dp)
-    )
-
-    Spacer(modifier = Modifier.height(24.dp))
-
-    // Show details even on error case if available
-    VerificationDetailsCard(
-        isVerified = false,
-        userAge = userAge,
-        minAge = minAge ?: "N/A",
-        currentYear = currentYear
     )
 
     Spacer(modifier = Modifier.height(24.dp))
@@ -284,52 +277,6 @@ private fun ErrorContent(
 }
 
 @Composable
-private fun VerificationDetailsCard(
-    isVerified: Boolean,
-    userAge: Int?,
-    minAge: String,
-    currentYear: String
-) {
-    ElevatedCard(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.elevatedCardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(24.dp)
-        ) {
-            Text(
-                text = "Verification Details",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            DetailItem(label = "Status", value = if (isVerified) "Verified" else "Not Verified", color = if (isVerified) SuccessGreen else ErrorRed)
-            DetailItem(label = "Your Age", value = userAge?.toString() ?: "N/A")
-            DetailItem(label = "Minimum Required", value = minAge)
-            DetailItem(label = "Year", value = currentYear)
-
-            Spacer(modifier = Modifier.height(16.dp))
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = "This proof is generated using Zero-Knowledge Proof technology. Your exact birth year remains private.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                lineHeight = 18.sp
-            )
-        }
-    }
-}
-
-@Composable
 private fun DetailItem(label: String, value: String, color: Color = MaterialTheme.colorScheme.onSurface) {
     Row(
         modifier = Modifier
@@ -356,9 +303,9 @@ private fun ActionButtons(
     onPrimaryClick: () -> Unit,
     primaryText: String,
     primaryIcon: ImageVector,
-    onSecondaryClick: () -> Unit,
-    secondaryText: String,
-    secondaryIcon: ImageVector
+    onSecondaryClick: (() -> Unit)? = null,
+    secondaryText: String? = null,
+    secondaryIcon: ImageVector? = null
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Button(
@@ -373,18 +320,20 @@ private fun ActionButtons(
             Text(primaryText, style = MaterialTheme.typography.titleMedium)
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        if (onSecondaryClick != null && secondaryText != null && secondaryIcon != null) {
+            Spacer(modifier = Modifier.height(12.dp))
 
-        OutlinedButton(
-            onClick = onSecondaryClick,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp),
-            shape = RoundedCornerShape(16.dp)
-        ) {
-            Icon(secondaryIcon, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(secondaryText, style = MaterialTheme.typography.titleMedium)
+            OutlinedButton(
+                onClick = onSecondaryClick,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Icon(secondaryIcon, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(secondaryText, style = MaterialTheme.typography.titleMedium)
+            }
         }
     }
 }
@@ -395,10 +344,8 @@ fun ResultScreenSuccessPreview() {
     ZeroIDTheme {
         ResultScreen(
             isSuccess = true,
-            message = "Age verification successful",
-            details = Details(isOldEnough = true, minAge = "18", currentYear = "2025"),
-            minAge = "18",
-            birthYear = "2005",
+            message = "Verification successful",
+            verificationDetails = VerificationDetails(isOldEnough = true, minAge = "18", currentYear = "2023"),
             userProfile = UserProfile(),
             onNavigateHome = {},
             onRetry = {}

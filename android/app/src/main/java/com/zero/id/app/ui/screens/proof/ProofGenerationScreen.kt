@@ -13,8 +13,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.zero.id.app.network.VerificationRequest
 import com.zero.id.app.ui.theme.ZeroIDTheme
-import com.zero.id.network.VerificationRequest
 
 /**
  * Proof generation screen

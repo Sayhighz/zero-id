@@ -2,34 +2,42 @@ package com.zero.id.app.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Primary colors
-val Primary = Color(0xFF6200EE)
-val PrimaryVariant = Color(0xFF3700B3)
-val Secondary = Color(0xFF03DAC6)
-val SecondaryVariant = Color(0xFF018786)
+// Wallet Theme Colors (Dark Blue / Cyan)
+val WalletBackground = Color(0xFF0A1A2A)
+val WalletSurface = Color(0xFF152A3D)
+val WalletPrimary = Color(0xFF1ED794)
+val WalletSecondary = Color(0xFF2DDA9E)
+val WalletTextPrimary = Color(0xFFFFFFFF)
+val WalletTextSecondary = Color(0xFF9EABB8)
+val WalletDivider = Color(0xFF253A4D)
+val WalletGreen = Color(0xFF1ED794)
 
-// Background and Surface
-val Background = Color(0xFFFFFBFE)
-val Surface = Color(0xFFFFFBFE)
-val Error = Color(0xFFB00020)
+// Standard colors
+val Primary = WalletPrimary
+val PrimaryVariant = Color(0xFF152A3D)
+val Secondary = WalletSecondary
+val SecondaryVariant = Color(0xFF152A3D)
 
-// On colors
-val OnPrimary = Color.White
+val Background = WalletBackground
+val Surface = WalletSurface
+val Error = Color(0xFFF44336)
+
+val OnPrimary = Color.Black
 val OnSecondary = Color.Black
-val OnBackground = Color(0xFF1C1B1F)
-val OnSurface = Color(0xFF1C1B1F)
+val OnBackground = WalletTextPrimary
+val OnSurface = WalletTextPrimary
 val OnError = Color.White
 
-// Dark theme colors
-val DarkBackground = Color(0xFF1C1B1F)
-val DarkSurface = Color(0xFF1C1B1F)
-val DarkPrimary = Color(0xFFBB86FC)
-val DarkSecondary = Color(0xFF03DAC6)
-val DarkOnBackground = Color(0xFFE6E1E5)
-val DarkOnSurface = Color(0xFFE6E1E5)
+// Dark Mode Specific Colors (Mapped to Wallet Theme)
+val DarkPrimary = WalletPrimary
+val DarkSecondary = WalletSecondary
+val DarkBackground = WalletBackground
+val DarkSurface = WalletSurface
+val DarkOnBackground = WalletTextPrimary
+val DarkOnSurface = WalletTextPrimary
 
 // Additional colors for ZeroID branding
-val SuccessGreen = Color(0xFF4CAF50)
+val SuccessGreen = WalletGreen
 val ErrorRed = Color(0xFFF44336)
 val InfoBlue = Color(0xFF2196F3)
 val WarningOrange = Color(0xFFFF9800)

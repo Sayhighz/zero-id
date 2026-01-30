@@ -1,228 +1,368 @@
 package com.zero.id.app.ui.screens.home
 
-import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
+import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
-import com.zero.id.app.ui.screens.ageproof.GenerateAgeProofScreen
-import com.zero.id.app.ui.theme.ZeroIDTheme
-import kotlinx.coroutines.launch
+import com.zero.id.app.security.ProfileStorage
+import com.zero.id.app.ui.theme.WalletBackground
+import com.zero.id.app.ui.theme.WalletPrimary
+import com.zero.id.app.ui.theme.WalletSurface
+import com.zero.id.app.ui.theme.WalletTextPrimary
+import com.zero.id.app.ui.theme.WalletTextSecondary
+import java.io.IOException
 
-/**
- * Home screen of ZeroID app
- * Entry point showing app branding and main action
- */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     onNavigateToProofGeneration: () -> Unit,
     onNavigateToQrScanner: () -> Unit,
-    onVerifyFromJson: (String) -> Unit
+    onVerifyFromJson: (String) -> Unit,
+    onNavigateToFaceScan: () -> Unit
 ) {
     val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
+    val userProfile = ProfileStorage(context).getProfile()
+    var showQrSourceDialog by remember { mutableStateOf(false) }
+    val scrollState = rememberScrollState()
 
-    val imagePickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        uri?.let {
-            try {
-                val inputStream = context.contentResolver.openInputStream(it)
-                val bitmap = BitmapFactory.decodeStream(inputStream)
-                val image = InputImage.fromBitmap(bitmap, 0)
-                val scanner = BarcodeScanning.getClient()
-                scanner.process(image)
-                    .addOnSuccessListener { barcodes ->
-                        if (barcodes.isNotEmpty()) {
-                            barcodes.first().rawValue?.let {
+    val pickImageLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent(),
+        onResult = { uri: Uri? ->
+            if (uri != null) {
+                try {
+                    val inputImage = InputImage.fromFilePath(context, uri)
+                    val options = BarcodeScannerOptions.Builder()
+                        .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
+                        .build()
+                    val scanner = BarcodeScanning.getClient(options)
+                    scanner.process(inputImage)
+                        .addOnSuccessListener { barcodes ->
+                            barcodes.firstOrNull()?.rawValue?.let {
                                 onVerifyFromJson(it)
                             }
                         }
-                    }
-                    .addOnFailureListener { e ->
-                        // Handle exceptions
-                    }
-            } catch (e: Exception) {
-                // Handle exceptions
+                } catch (e: IOException) {
+                    e.printStackTrace()
+                }
             }
         }
-    }
+    )
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("ZeroID") },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary
-                )
-            )
-        }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(WalletBackground)
+            .verticalScroll(scrollState)
+            .padding(horizontal = 24.dp)
+    ) {
+        Spacer(modifier = Modifier.height(48.dp))
+
+        // Header
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // Security icon
-            Icon(
-                imageVector = Icons.Default.Security,
-                contentDescription = "Security",
-                modifier = Modifier.size(120.dp),
-                tint = MaterialTheme.colorScheme.primary
-            )
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // Headline
-            Text(
-                text = "Zero-Knowledge Identity",
-                style = MaterialTheme.typography.headlineLarge,
-                color = MaterialTheme.colorScheme.onBackground,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Subtitle
-            Text(
-                text = "Prove your age without revealing your birth date",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(48.dp))
-
-            // Primary action button
-            GenerateAgeProofScreen(
-                onNavigateToProofGeneration = onNavigateToProofGeneration,
-                onNavigateToQrScanner = onNavigateToQrScanner,
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            OutlinedButton(
-                onClick = { imagePickerLauncher.launch("image/*") },
-                modifier = Modifier.fillMaxWidth()
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.clickable { onNavigateToFaceScan() }
             ) {
-                Icon(Icons.Default.Image, contentDescription = "Scan from image")
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Scan QR from Image")
-            }
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // Information card
-            OutlinedCard(
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(WalletPrimary),
+                    contentAlignment = Alignment.Center
                 ) {
+                    Icon(
+                        imageVector = Icons.Default.Shield,
+                        contentDescription = null,
+                        tint = Color.Black,
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
                     Text(
-                        text = "How it works",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary
+                        text = "ZeroID",
+                        color = WalletTextPrimary,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold
                     )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    InfoPoint(
-                        number = "1",
-                        text = "Enter your birth year and minimum age requirement"
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    InfoPoint(
-                        number = "2",
-                        text = "Generate a zero-knowledge proof on your device"
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    InfoPoint(
-                        number = "3",
-                        text = "Prove you meet the age requirement without revealing your actual age"
-                    )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
                     Text(
-                        text = "Your birth date never leaves your device",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.secondary,
-                        modifier = Modifier.fillMaxWidth(),
-                        textAlign = TextAlign.Center
+                        text = "กระเป๋าตัวตนดิจิทัล",
+                        color = WalletTextSecondary,
+                        fontSize = 12.sp
+                    )
+                }
+            }
+            IconButton(
+                onClick = { /* TODO */ },
+                modifier = Modifier.background(WalletSurface, CircleShape)
+            ) {
+                Icon(Icons.Default.MoreVert, contentDescription = null, tint = WalletTextPrimary)
+            }
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        // Status
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(text = "สถานะกระเป๋า", color = WalletTextSecondary, fontSize = 14.sp)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(WalletPrimary)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(text = "ใช้งานได้", color = WalletPrimary, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+            }
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        // ID Card
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(24.dp))
+                .background(WalletSurface)
+                .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(24.dp))
+                .padding(20.dp)
+        ) {
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    Surface(
+                        color = Color.Black.copy(alpha = 0.3f),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.Memory, contentDescription = null, tint = WalletTextSecondary, modifier = Modifier.size(14.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Samsung Knox", color = WalletTextSecondary, fontSize = 10.sp)
+                        }
+                    }
+                }
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(80.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color.Gray.copy(alpha = 0.2f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(48.dp), tint = WalletTextSecondary)
+                    }
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column {
+                        Text(text = "บัตรประชาชน", color = WalletTextPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        Text(text = "Thai National ID Card", color = WalletTextSecondary, fontSize = 12.sp)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(WalletPrimary))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(text = "ยืนยันตัวตนแล้ว", color = WalletPrimary, fontSize = 11.sp)
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Card Info Fields
+                CardInfoField(label = "เลขประจำตัวประชาชน", value = "1 XXXX XXXXX XX X")
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        CardInfoField(label = "ชื่อ-นามสกุล", value = "นาย ●●●●●●")
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        CardInfoField(label = "วันหมดอายุ", value = "XX/XX/XXXX")
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Bottom
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.VerifiedUser, contentDescription = null, tint = WalletPrimary, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Blockchain Verified", color = WalletTextSecondary, fontSize = 10.sp)
+                    }
+                    
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color.White.copy(alpha = 0.05f))
+                            .border(1.dp, WalletPrimary.copy(alpha = 0.3f), RoundedCornerShape(10.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.QrCode2, contentDescription = null, tint = WalletPrimary, modifier = Modifier.size(24.dp))
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        // Quick Actions
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            QuickActionButton(icon = Icons.Default.Description, label = "เอกสาร")
+            QuickActionButton(icon = Icons.Default.History, label = "ประวัติ")
+            QuickActionButton(icon = Icons.Default.Settings, label = "ตั้งค่า")
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        // Main Action Button
+        Button(
+            onClick = { showQrSourceDialog = true },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(64.dp)
+                .padding(bottom = 12.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+            contentPadding = PaddingValues()
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        brush = Brush.horizontalGradient(
+                            colors = listOf(WalletPrimary, Color(0xFF2DDA9E))
+                        )
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.QrCodeScanner, contentDescription = null, tint = Color.Black)
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = "สแกนเพื่อยืนยันตัวตน",
+                        color = Color.Black,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
                     )
                 }
             }
         }
-    }
-}
-
-/**
- * Composable for displaying numbered information points
- */
-@Composable
-private fun InfoPoint(number: String, text: String) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.Top
-    ) {
-        Surface(
-            shape = MaterialTheme.shapes.small,
-            color = MaterialTheme.colorScheme.primaryContainer,
-            modifier = Modifier.size(24.dp)
-        ) {
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier.fillMaxSize()
-            ) {
-                Text(
-                    text = number,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.width(12.dp))
 
         Text(
-            text = text,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.weight(1f)
+            text = "• ใช้งานง่าย ปลอดภัย และรวดเร็ว •",
+            modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
+            textAlign = TextAlign.Center,
+            color = WalletTextSecondary,
+            fontSize = 12.sp
+        )
+    }
+
+    if (showQrSourceDialog) {
+        AlertDialog(
+            onDismissRequest = { showQrSourceDialog = false },
+            title = { Text("เลือกช่องทางสแกน QR Code", color = WalletTextPrimary) },
+            text = { Text("คุณต้องการใช้กล้องสแกน หรือเลือกรูปภาพจากแกลเลอรี?", color = WalletTextSecondary) },
+            containerColor = WalletSurface,
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showQrSourceDialog = false
+                        onNavigateToQrScanner()
+                    }
+                ) {
+                    Text("ใช้กล้อง", color = WalletPrimary)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showQrSourceDialog = false
+                        pickImageLauncher.launch("image/*")
+                    }
+                ) {
+                    Text("เลือกจากรูปภาพ", color = WalletPrimary)
+                }
+            }
         )
     }
 }
 
-@Preview(showBackground = true)
 @Composable
-fun HomeScreenPreview() {
-    ZeroIDTheme {
-        HomeScreen(
-            onNavigateToProofGeneration = {},
-            onNavigateToQrScanner = {},
-            onVerifyFromJson = {}
-        )
+fun CardInfoField(label: String, value: String) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color.Black.copy(alpha = 0.2f))
+            .padding(12.dp)
+    ) {
+        Text(text = label, color = WalletTextSecondary, fontSize = 10.sp)
+        Text(text = value, color = WalletTextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+    }
+}
+
+@Composable
+fun QuickActionButton(icon: ImageVector, label: String) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.width(100.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(64.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(WalletSurface)
+                .border(1.dp, Color.White.copy(alpha = 0.05f), RoundedCornerShape(16.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(imageVector = icon, contentDescription = null, tint = WalletPrimary, modifier = Modifier.size(28.dp))
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(text = label, color = WalletTextSecondary, fontSize = 13.sp)
     }
 }
