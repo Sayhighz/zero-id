@@ -131,6 +131,51 @@ app.post('/api/verify-citizen', async (req, res) => {
     }
 });
 
+// โหลด Salary Check verification key
+const salaryVkeyPath = path.join(__dirname, 'salary_check_vkey.json');
+const salaryVkey = JSON.parse(fs.readFileSync(salaryVkeyPath, 'utf8'));
+
+// Salary Check verify endpoint
+app.post('/api/verify-salary', async (req, res) => {
+    console.log("Received Salary Verification Request");
+
+    try {
+        const { proof, publicSignals } = req.body;
+
+        if (!proof || !publicSignals) {
+            return res.status(400).json({
+                success: false,
+                message: "Missing proof or publicSignals"
+            });
+        }
+
+        const isValid = await snarkjs.groth16.verify(salaryVkey, publicSignals, proof);
+
+        if (isValid) {
+            res.json({
+                success: true,
+                message: "Salary Proof Verified",
+                details: {
+                    isAboveMin: publicSignals[0] === "1",
+                    minSalary: publicSignals[1]
+                }
+            });
+        } else {
+            res.json({
+                success: false,
+                message: "Invalid Proof"
+            });
+        }
+    } catch (error) {
+        console.error("Verification error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Verification failed",
+            error: error.message
+        });
+    }
+});
+
 app.listen(port, () => {
     console.log(`ZeroID Verifier running on http://localhost:${port}`);
 });
