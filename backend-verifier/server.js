@@ -3,6 +3,10 @@ const cors = require("cors");
 const snarkjs = require("snarkjs");
 const fs = require("fs");
 const path = require("path");
+const { v4: uuidv4 } = require("uuid"); // เพิ่มตัวนี้ด้านบน
+
+// สร้าง Memory Database ไว้เก็บ Request
+const verificationRequests = {};
 
 const app = express();
 const port = 3000;
@@ -98,6 +102,65 @@ app.post("/api/verify-citizen", async (req, res) => {
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
+});
+
+app.get("/api/generate-challenge", (req, res) => {
+    const requestId = uuidv4(); // สร้าง ID สุ่มไม่ให้ซ้ำกัน
+    
+    const challenge = {
+        requestId: requestId,
+        verifierName: "ZeroID Bank",
+        minAge: 20,
+        minSalary: 15000,
+        currentYear: 2026,
+        // สำคัญ: ต้องเป็น IP เครื่องคุณเพื่อให้ Android ยิงหาเจอ
+        callbackUrl: `http://localhost:3000/api/verify-callback` 
+    };
+
+    // บันทึกสถานะเริ่มต้นเป็น PENDING
+    verificationRequests[requestId] = {
+        ...challenge,
+        status: "PENDING",
+        result: null
+    };
+
+    res.json(challenge);
+});
+
+app.post('/api/verify-callback', async (req, res) => {
+    try {
+        const { requestId, proof, publicSignals } = req.body;
+
+        // 1. เช็คว่ามี Request นี้จริงไหม
+        const requestData = verificationRequests[requestId];
+        if (!requestData) {
+            return res.status(404).json({ success: false, message: "Request ID not found" });
+        }
+
+        // 2. ตรวจสอบ Proof (ใช้ logic เดิมที่คุณมี)
+        const isValid = await snarkjs.groth16.verify(vkey, publicSignals, proof);
+
+        if (isValid) {
+            const isQualified = publicSignals[0] === "1";
+            
+            // 3. อัปเดตสถานะในระบบ
+            verificationRequests[requestId].status = "COMPLETED";
+            verificationRequests[requestId].result = isQualified ? "PASSED" : "FAILED";
+
+            res.json({ success: true, isQualified });
+        } else {
+            verificationRequests[requestId].status = "FAILED";
+            res.status(401).json({ success: false, message: "Invalid Proof" });
+        }
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+app.get("/api/check-status/:requestId", (req, res) => {
+    const data = verificationRequests[req.params.requestId];
+    if (!data) return res.status(404).json({ message: "Not found" });
+    res.json({ status: data.status, result: data.result });
 });
 
 app.listen(port, () => {
