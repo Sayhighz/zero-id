@@ -12,7 +12,13 @@ app.use(express.json());
 
 // โหลด verification key
 const vkeyPath = path.join(__dirname, 'verification_key.json');
-const vkey = JSON.parse(fs.readFileSync(vkeyPath, 'utf8'));
+let vkey;
+try {
+    vkey = JSON.parse(fs.readFileSync(vkeyPath, 'utf8'));
+} catch (err) {
+    console.error("Error loading verification_key.json:", err.message);
+    process.exit(1); // ปิดโปรแกรมถ้าไม่มี Key หลัก
+}
 
 // Health check
 app.get('/', (req, res) => {
@@ -68,7 +74,12 @@ app.post('/api/verify', async (req, res) => {
 
 // โหลด Thai Citizen verification key
 const thaiVkeyPath = path.join(__dirname, 'thai_citizen_vkey.json');
-const thaiVkey = JSON.parse(fs.readFileSync(thaiVkeyPath, 'utf8'));
+let thaiVkey;
+try {
+    thaiVkey = JSON.parse(fs.readFileSync(thaiVkeyPath, 'utf8'));
+} catch (err) {
+    console.warn("Warning: thai_citizen_vkey.json not found. Citizen verification will fail.");
+}
 
 // Thai Citizen verify endpoint
 app.post('/api/verify-citizen', async (req, res) => {
@@ -76,6 +87,13 @@ app.post('/api/verify-citizen', async (req, res) => {
     
     try {
         const { proof, publicSignals } = req.body;
+
+        if (!thaiVkey) {
+            return res.status(500).json({
+                success: false,
+                message: "Server configuration error: Missing Thai Citizen Key"
+            });
+        }
 
         if (!proof || !publicSignals) {
             return res.status(400).json({ 
