@@ -102,6 +102,9 @@ app.post('/api/verify-citizen', async (req, res) => {
             });
         }
 
+        // Debugging: Log signal counts to check for mismatches
+        console.log(`[Thai Citizen] Expected signals: ${thaiVkey.nPublic}, Received: ${publicSignals.length}`);
+
         const isValid = await snarkjs.groth16.verify(thaiVkey, publicSignals, proof);
 
         if (isValid) {
