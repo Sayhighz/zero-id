@@ -3,6 +3,7 @@ const cors = require('cors');
 const snarkjs = require('snarkjs');
 const fs = require('fs');
 const path = require('path');
+const { issueCredential, presentCredential, verifyPresentation } = require('./selective-disclosure');
 
 const app = express();
 const port = 3000;
@@ -147,6 +148,111 @@ app.post('/api/verify-salary', async (req, res) => {
         }
     } catch (error) {
         console.error("Verification error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Verification failed",
+            error: error.message
+        });
+    }
+});
+
+// ============================================================
+// Selective Disclosure Endpoints (เข้าหมู่บ้าน)
+// ============================================================
+
+// 1. Issue Credential - กรมการปกครอง ออก credential ให้ user
+app.post('/api/credential/issue', (req, res) => {
+    console.log("Received Issue Credential Request");
+
+    try {
+        const { personalData } = req.body;
+
+        if (!personalData) {
+            return res.status(400).json({
+                success: false,
+                message: "Missing personalData"
+            });
+        }
+
+        const result = issueCredential(personalData);
+
+        res.json({
+            success: true,
+            message: "Credential Issued",
+            credential: result.credential
+        });
+    } catch (error) {
+        console.error("Issue error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to issue credential",
+            error: error.message
+        });
+    }
+});
+
+// 2. Present Credential - user เลือก field ที่จะเปิดเผย
+app.post('/api/credential/present', (req, res) => {
+    console.log("Received Present Credential Request");
+
+    try {
+        const { credential, fieldsToReveal } = req.body;
+
+        if (!credential || !fieldsToReveal) {
+            return res.status(400).json({
+                success: false,
+                message: "Missing credential or fieldsToReveal"
+            });
+        }
+
+        const result = presentCredential(credential, fieldsToReveal);
+
+        res.json({
+            success: true,
+            message: "Presentation Created",
+            presentation: result.presentation
+        });
+    } catch (error) {
+        console.error("Present error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to create presentation",
+            error: error.message
+        });
+    }
+});
+
+// 3. Verify Credential - ยาม/verifier ตรวจสอบ
+app.post('/api/credential/verify', (req, res) => {
+    console.log("Received Verify Credential Request");
+
+    try {
+        const { presentation } = req.body;
+
+        if (!presentation) {
+            return res.status(400).json({
+                success: false,
+                message: "Missing presentation"
+            });
+        }
+
+        const result = verifyPresentation(presentation);
+
+        if (result.valid) {
+            res.json({
+                success: true,
+                message: "Credential Verified - Data is authentic",
+                details: result
+            });
+        } else {
+            res.json({
+                success: false,
+                message: "Credential Verification Failed",
+                reason: result.reason
+            });
+        }
+    } catch (error) {
+        console.error("Verify error:", error);
         res.status(500).json({
             success: false,
             message: "Verification failed",
