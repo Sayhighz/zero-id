@@ -39,6 +39,9 @@ app.post('/api/verify', async (req, res) => {
             });
         }
 
+        // Debugging: Log signal counts
+        console.log(`[Age Check] Expected signals: ${vkey.nPublic}, Received: ${publicSignals.length}`);
+
         // Verify proof ด้วย snarkjs
         const isValid = await snarkjs.groth16.verify(vkey, publicSignals, proof);
 
