@@ -1,9 +1,11 @@
 package com.zero.id.app.network
 
+import com.google.gson.annotations.SerializedName
+
 data class Proof(
-    val pi_a: List<String>,
-    val pi_b: List<List<String>>,
-    val pi_c: List<String>,
-    val protocol: String,
-    val curve: String
+    @SerializedName("pi_a") val piA: List<String>,
+    @SerializedName("pi_b") val piB: List<List<String>>,
+    @SerializedName("pi_c") val piC: List<String>,
+    @SerializedName("protocol") val protocol: String,
+    @SerializedName("curve") val curve: String
 )

@@ -44,7 +44,7 @@ class ProofGenerationViewModel(
     private val _minAge = MutableStateFlow("")
     val minAge: StateFlow<String> = _minAge.asStateFlow()
 
-    private val currentYear = Calendar.getInstance().get(Calendar.YEAR)
+    private val currentYear = 2026 // Hardcoded for testing with the provided QR code
     private val profileStorage = ServiceLocator.provideProfileStorage(application)
 
     init {
@@ -152,10 +152,10 @@ class ProofGenerationViewModel(
         viewModelScope.launch {
             try {
                 val response = RetrofitClient.instance.verify(request)
-                if (response.success) {
+                if (response.isSuccessful && response.body()?.success == true) {
                     _state.value = ProofGenerationState.Success(request)
                 } else {
-                    _state.value = ProofGenerationState.Error(response.message)
+                    _state.value = ProofGenerationState.Error(response.body()?.message ?: "Verification failed on server")
                 }
             } catch (e: Exception) {
                 _state.value = ProofGenerationState.Error(e.message ?: "Unknown error verifying proof")

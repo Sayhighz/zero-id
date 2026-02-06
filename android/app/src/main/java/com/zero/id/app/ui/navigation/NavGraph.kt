@@ -1,6 +1,7 @@
 package com.zero.id.app.ui.navigation
 
 import android.app.Application
+import android.util.Log
 import android.webkit.WebView
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -72,10 +73,16 @@ fun NavGraph(
                         try {
                             val verificationRequest = Gson().fromJson(it, VerificationRequest::class.java)
                             val response = RetrofitClient.instance.verify(verificationRequest)
-                            navController.navigate(Screen.VerificationResult.createRoute(response.success)) {
+                            Log.d("Verification", "Response: $response")
+                            if (!response.isSuccessful) {
+                                Log.e("Verification", "Verification failed: ${response.errorBody()?.string()}")
+                            }
+                            val isSuccess = response.isSuccessful && response.body()?.success == true
+                            navController.navigate(Screen.VerificationResult.createRoute(isSuccess)) {
                                 popUpTo(Screen.Home.route)
                             }
                         } catch (e: Exception) {
+                            Log.e("Verification", "Error during verification", e)
                             navController.navigate(Screen.VerificationResult.createRoute(false)) {
                                 popUpTo(Screen.Home.route)
                             }
@@ -139,10 +146,16 @@ fun NavGraph(
                         coroutineScope.launch {
                             try {
                                 val response = RetrofitClient.instance.verify(it)
-                                navController.navigate(Screen.VerificationResult.createRoute(response.success)) {
+                                Log.d("Verification", "Response: $response")
+                                if (!response.isSuccessful) {
+                                    Log.e("Verification", "Verification failed: ${response.errorBody()?.string()}")
+                                }
+                                val isSuccess = response.isSuccessful && response.body()?.success == true
+                                navController.navigate(Screen.VerificationResult.createRoute(isSuccess)) {
                                     popUpTo(Screen.Home.route)
                                 }
                             } catch (e: Exception) {
+                                Log.e("Verification", "Error during verification", e)
                                 navController.navigate(Screen.VerificationResult.createRoute(false)) {
                                     popUpTo(Screen.Home.route)
                                 }
@@ -160,16 +173,22 @@ fun NavGraph(
             }
         }
 
-        composable(route = Screen.QRScanner.route) {
+        composable(route = Screen.QRScanner.route) { 
             QRScannerScreen { 
                 coroutineScope.launch {
                     try {
                         val verificationRequest = Gson().fromJson(it, VerificationRequest::class.java)
                         val response = RetrofitClient.instance.verify(verificationRequest)
-                        navController.navigate(Screen.VerificationResult.createRoute(response.success)) {
+                        Log.d("Verification", "Response: $response")
+                        if (!response.isSuccessful) {
+                            Log.e("Verification", "Verification failed: ${response.errorBody()?.string()}")
+                        }
+                        val isSuccess = response.isSuccessful && response.body()?.success == true
+                        navController.navigate(Screen.VerificationResult.createRoute(isSuccess)) {
                             popUpTo(Screen.Home.route)
                         }
                     } catch (e: Exception) {
+                        Log.e("Verification", "Error during verification", e)
                         navController.navigate(Screen.VerificationResult.createRoute(false)) {
                             popUpTo(Screen.Home.route)
                         }
