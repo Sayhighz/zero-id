@@ -26,10 +26,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
+import com.zero.id.app.network.ChallengeResponse
 import com.zero.id.app.security.ProfileStorage
 import com.zero.id.app.ui.theme.WalletBackground
 import com.zero.id.app.ui.theme.WalletPrimary
@@ -43,12 +45,14 @@ fun HomeScreen(
     onNavigateToProofGeneration: () -> Unit,
     onNavigateToQrScanner: () -> Unit,
     onVerifyFromJson: (String) -> Unit,
-    onNavigateToFaceScan: () -> Unit
+    onNavigateToFaceScan: () -> Unit,
+    viewModel: HomeViewModel = viewModel()
 ) {
     val context = LocalContext.current
     val userProfile = ProfileStorage(context).getProfile()
     var showQrSourceDialog by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
+    val challengeResponse by viewModel.challengeResponse.collectAsState()
 
     val pickImageLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent(),
@@ -230,7 +234,7 @@ fun HomeScreen(
                         Spacer(modifier = Modifier.width(4.dp))
                         Text("Blockchain Verified", color = WalletTextSecondary, fontSize = 10.sp)
                     }
-                    
+
                     Box(
                         modifier = Modifier
                             .size(44.dp)
@@ -261,7 +265,7 @@ fun HomeScreen(
 
         // Main Action Button
         Button(
-            onClick = { showQrSourceDialog = true },
+            onClick = { viewModel.generateChallenge() },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(64.dp)
@@ -281,10 +285,10 @@ fun HomeScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.QrCodeScanner, contentDescription = null, tint = Color.Black)
+                    Icon(Icons.Default.Lock, contentDescription = null, tint = Color.Black)
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
-                        text = "สแกนเพื่อยืนยันตัวตน",
+                        text = "ยืนยันตัวตน",
                         color = Color.Black,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold
@@ -330,7 +334,35 @@ fun HomeScreen(
             }
         )
     }
+
+    challengeResponse?.let {
+        ChallengeDetailsDialog(challenge = it, onDismiss = { viewModel.clearChallenge() })
+    }
 }
+
+@Composable
+fun ChallengeDetailsDialog(challenge: ChallengeResponse, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(challenge.verifierName, color = WalletTextPrimary) },
+        text = {
+            Column {
+                Text("ต้องการข้อมูลดังนี้:", color = WalletTextSecondary)
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(" - อายุขั้นต่ำ: ${challenge.minAge}")
+                Text(" - เงินเดือนขั้นต่ำ: ${challenge.minSalary}")
+                Text(" - ปีปัจจุบัน: ${challenge.currentYear}")
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("ตกลง", color = WalletPrimary)
+            }
+        },
+        containerColor = WalletSurface
+    )
+}
+
 
 @Composable
 fun CardInfoField(label: String, value: String) {
