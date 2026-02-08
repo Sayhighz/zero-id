@@ -17,6 +17,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,6 +40,7 @@ import com.zero.id.app.network.VerificationRequest
 import com.zero.id.app.ui.screens.face.FaceScanScreen
 import com.zero.id.app.ui.screens.home.HomeScreen
 import com.zero.id.app.ui.screens.home.HomeViewModel
+import com.zero.id.app.ui.screens.proof.ProofDisplayScreen
 import com.zero.id.app.ui.screens.proof.ProofGenerationScreen
 import com.zero.id.app.ui.screens.proof.ProofGenerationViewModel
 import com.zero.id.app.ui.screens.proof.ProofGenerationViewModelFactory
@@ -67,7 +69,8 @@ fun NavGraph(
         composable(route = Screen.Home.route) {
             HomeScreen(
                 onNavigateToProofGeneration = {
-                    navController.navigate(Screen.ProofGeneration.route)
+                    homeViewModel.clearLastProof()
+                    navController.navigate(Screen.ProofDisplay.route)
                 },
                 onNavigateToQrScanner = {
                     navController.navigate(Screen.QRScanner.route)
@@ -77,13 +80,11 @@ fun NavGraph(
                         try {
                             val verificationRequest = Gson().fromJson(it, VerificationRequest::class.java)
                             val response = RetrofitClient.instance.verify(verificationRequest)
-                            if (response.isSuccessful && response.body()?.success == true) {
-                                navController.navigate(Screen.VerificationResult.createRoute(true))
-                            } else {
-                                navController.navigate(Screen.VerificationResult.createRoute(false))
-                            }
+                            val isSuccess = response.isSuccessful && response.body()?.success == true
+                            val message = response.body()?.message ?: if (isSuccess) "Success" else "Failed"
+                            navController.navigate(Screen.VerificationResult.createRoute(isSuccess, message))
                         } catch (e: Exception) {
-                            navController.navigate(Screen.VerificationResult.createRoute(false))
+                            navController.navigate(Screen.VerificationResult.createRoute(false, "Error: ${e.message}"))
                         }
                     }
                 },
@@ -98,18 +99,19 @@ fun NavGraph(
             QRScannerScreen { scannedContent ->
                 if (scannedContent.startsWith("http")) {
                     homeViewModel.fetchChallengeFromUrl(scannedContent)
-                    navController.popBackStack() // Go back to Home to show the challenge dialog
+                    navController.popBackStack() 
                 } else {
                     coroutineScope.launch {
                         try {
                             val verificationRequest = Gson().fromJson(scannedContent, VerificationRequest::class.java)
                             val response = RetrofitClient.instance.verify(verificationRequest)
                             val isSuccess = response.isSuccessful && response.body()?.success == true
-                            navController.navigate(Screen.VerificationResult.createRoute(isSuccess)) {
+                            val message = response.body()?.message ?: if (isSuccess) "Success" else "Failed"
+                            navController.navigate(Screen.VerificationResult.createRoute(isSuccess, message)) {
                                 popUpTo(Screen.Home.route)
                             }
                         } catch (e: Exception) {
-                            navController.navigate(Screen.VerificationResult.createRoute(false)) {
+                            navController.navigate(Screen.VerificationResult.createRoute(false, "Error: ${e.message}")) {
                                 popUpTo(Screen.Home.route)
                             }
                         }
@@ -118,7 +120,6 @@ fun NavGraph(
             }
         }
 
-        // ... Rest of the composables (FaceScan, ProofGeneration, VerificationResult) remain same
         composable(route = Screen.FaceScan.route) {
             FaceScanScreen(
                 onBack = { navController.popBackStack() },
@@ -129,76 +130,54 @@ fun NavGraph(
         }
 
         composable(route = Screen.ProofGeneration.route) {
-            val webView = remember { WebView(context) }
-            var zkProver by remember { mutableStateOf<ZKProver?>(null) }
-            var isInitialized by remember { mutableStateOf(false) }
-            var initError by remember { mutableStateOf<String?>(null) }
+            Text("Bypassed")
+        }
 
+        composable(route = Screen.ProofDisplay.route) {
             LaunchedEffect(Unit) {
                 try {
-                    withContext(Dispatchers.Main) {
-                        val prover = ZKProver(context)
-                        prover.initialize(webView) { success ->
-                            isInitialized = success
-                            if (success) zkProver = prover else initError = "Failed to initialize proof generator"
-                        }
-                    }
+                    val proofJson = context.assets.open("zkp/circuits/proof.json").bufferedReader().use { it.readText() }
+                    val publicJson = context.assets.open("zkp/circuits/public.json").bufferedReader().use { it.readText() }
+                    
+                    // Specific mock data as requested
+                    val mockPublicSignals = listOf("1", "20", "15000", "2026")
+                    
+                    val verificationRequest = com.zero.id.app.network.VerificationRequest(
+                        proof = Gson().fromJson(proofJson, com.zero.id.app.network.Proof::class.java),
+                        publicSignals = mockPublicSignals
+                    )
+                    
+                    homeViewModel.setLastProofData(
+                        verificationRequest,
+                        proofJson,
+                        Gson().toJson(mockPublicSignals)
+                    )
                 } catch (e: Exception) {
-                    initError = "Error: ${e.message}"
+                    Log.e("NavGraph", "Error loading mock proof assets", e)
                 }
             }
 
-            DisposableEffect(Unit) { onDispose { webView.destroy() } }
-
-            if (initError != null) {
-                Column(modifier = Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                    Text("Initialization Failed", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.error)
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(initError ?: "Unknown error", textAlign = TextAlign.Center)
-                    Spacer(modifier = Modifier.height(24.dp))
-                    Button(onClick = { navController.popBackStack() }) { Text("Go Back") }
-                }
-            } else if (isInitialized && zkProver != null) {
-                val factory = ProofGenerationViewModelFactory(
-                    context.applicationContext as Application,
-                    zkProver!!
-                )
-                val viewModel: ProofGenerationViewModel = viewModel(factory = factory)
-                ProofGenerationScreen(
-                    onNavigateBack = { navController.popBackStack() },
-                    onVerificationRequest = {
-                        coroutineScope.launch {
-                            try {
-                                val response = RetrofitClient.instance.verify(it)
-                                val isSuccess = response.isSuccessful && response.body()?.success == true
-                                navController.navigate(Screen.VerificationResult.createRoute(isSuccess)) {
-                                    popUpTo(Screen.Home.route)
-                                }
-                            } catch (e: Exception) {
-                                navController.navigate(Screen.VerificationResult.createRoute(false)) {
-                                    popUpTo(Screen.Home.route)
-                                }
-                            }
-                        }
-                    },
-                    viewModel = viewModel
-                )
-            } else {
-                Column(modifier = Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                    CircularProgressIndicator(modifier = Modifier.size(64.dp))
-                    Spacer(modifier = Modifier.height(24.dp))
-                    Text("Initializing proof generator...")
-                }
-            }
+            ProofDisplayScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToResult = { isSuccess, message ->
+                    navController.navigate(Screen.VerificationResult.createRoute(isSuccess, message))
+                },
+                viewModel = homeViewModel
+            )
         }
         
         composable(
             route = Screen.VerificationResult.route,
-            arguments = listOf(navArgument("isSuccess") { type = NavType.BoolType })
+            arguments = listOf(
+                navArgument("isSuccess") { type = NavType.BoolType },
+                navArgument("message") { type = NavType.StringType }
+            )
         ) { backStackEntry ->
             val isSuccess = backStackEntry.arguments?.getBoolean("isSuccess") ?: false
+            val message = backStackEntry.arguments?.getString("message") ?: ""
             VerificationResultScreen(
                 isSuccess = isSuccess,
+                message = message,
                 onDone = {
                     navController.navigate(Screen.Home.route) {
                         popUpTo(Screen.Home.route) { inclusive = true }

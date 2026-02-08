@@ -3,6 +3,9 @@ package com.zero.id.app.ui.screens.home
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -21,7 +24,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -33,6 +38,7 @@ import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
 import com.zero.id.app.network.ChallengeResponse
 import com.zero.id.app.security.ProfileStorage
+import com.zero.id.app.ui.screens.proof.JsonCodeBlock
 import com.zero.id.app.ui.theme.WalletBackground
 import com.zero.id.app.ui.theme.WalletPrimary
 import com.zero.id.app.ui.theme.WalletSurface
@@ -54,6 +60,9 @@ fun HomeScreen(
     var showVerifyOptionsDialog by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
     val challengeResponse by viewModel.challengeResponse.collectAsState()
+    val lastProofJson by viewModel.lastProofJson.collectAsState()
+    val lastPublicSignalsJson by viewModel.lastPublicSignalsJson.collectAsState()
+    val lastVerificationRequest by viewModel.lastVerificationRequest.collectAsState()
 
     val pickImageLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent(),
@@ -139,6 +148,70 @@ fun HomeScreen(
         }
 
         Spacer(modifier = Modifier.height(32.dp))
+
+        // Last Proof Section
+        AnimatedVisibility(
+            visible = lastProofJson != null,
+            enter = expandVertically(),
+            exit = shrinkVertically()
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 24.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "หลักฐานล่าสุดที่สร้าง",
+                        color = WalletPrimary,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    TextButton(onClick = { viewModel.clearLastProof() }) {
+                        Text("ล้างข้อมูล", color = WalletTextSecondary, fontSize = 12.sp)
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(WalletSurface)
+                        .padding(16.dp)
+                ) {
+                    JsonCodeBlock(
+                        title = "Proof JSON",
+                        json = lastProofJson ?: "",
+                        onCopy = { /* Handled in JsonCodeBlock */ }
+                    )
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    JsonCodeBlock(
+                        title = "Public Signals",
+                        json = lastPublicSignalsJson ?: "",
+                        onCopy = { /* Handled in JsonCodeBlock */ }
+                    )
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    Button(
+                        onClick = { lastVerificationRequest?.let { onVerifyFromJson(com.google.gson.Gson().toJson(it)) } },
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = WalletPrimary)
+                    ) {
+                        Text("ส่งยืนยันอีกครั้ง", color = Color.Black, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
 
         // Status
         Column(
@@ -374,7 +447,7 @@ fun HomeScreen(
             challenge = it, 
             onDismiss = { viewModel.clearChallenge() },
             onConfirm = {
-                viewModel.clearChallenge()
+                // Do NOT clear challenge here, we need it in the next screen
                 onNavigateToProofGeneration()
             }
         )

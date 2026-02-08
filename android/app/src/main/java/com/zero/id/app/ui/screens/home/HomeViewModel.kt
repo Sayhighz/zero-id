@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zero.id.app.network.ChallengeResponse
 import com.zero.id.app.network.RetrofitInstance
+import com.zero.id.app.network.VerificationRequest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -17,8 +18,23 @@ class HomeViewModel : ViewModel() {
     private val _challengeResponse = MutableStateFlow<ChallengeResponse?>(null)
     val challengeResponse: StateFlow<ChallengeResponse?> = _challengeResponse
 
+    private val _lastVerificationRequest = MutableStateFlow<VerificationRequest?>(null)
+    val lastVerificationRequest: StateFlow<VerificationRequest?> = _lastVerificationRequest
+
+    private val _lastProofJson = MutableStateFlow<String?>(null)
+    val lastProofJson: StateFlow<String?> = _lastProofJson
+
+    private val _lastPublicSignalsJson = MutableStateFlow<String?>(null)
+    val lastPublicSignalsJson: StateFlow<String?> = _lastPublicSignalsJson
+
     private val client = OkHttpClient()
     private val gson = Gson()
+
+    fun setLastProofData(request: VerificationRequest, proofJson: String, publicSignalsJson: String) {
+        _lastVerificationRequest.value = request
+        _lastProofJson.value = proofJson
+        _lastPublicSignalsJson.value = publicSignalsJson
+    }
 
     fun generateChallenge() {
         viewModelScope.launch {
@@ -35,9 +51,7 @@ class HomeViewModel : ViewModel() {
     fun fetchChallengeFromUrl(url: String) {
         viewModelScope.launch {
             try {
-                // สำหรับ Android Emulator, localhost ต้องเปลี่ยนเป็น 10.0.2.2
                 val finalUrl = url.replace("localhost", "10.0.2.2")
-
                 val request = Request.Builder()
                     .url(finalUrl)
                     .build()
@@ -62,5 +76,11 @@ class HomeViewModel : ViewModel() {
 
     fun clearChallenge() {
         _challengeResponse.value = null
+    }
+
+    fun clearLastProof() {
+        _lastVerificationRequest.value = null
+        _lastProofJson.value = null
+        _lastPublicSignalsJson.value = null
     }
 }

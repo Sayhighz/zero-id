@@ -10,4 +10,7 @@ interface VerificationService {
 
     @POST("/api/verify-citizen")
     suspend fun verifyCitizen(@Body request: VerificationRequest): Response<VerificationResponse>
+
+    @POST("/api/verify-direct")
+    suspend fun verifyDirect(@Body request: VerificationRequest): Response<VerificationResponse>
 }

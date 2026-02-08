@@ -1,5 +1,7 @@
 package com.zero.id.app.ui.navigation
 
+import android.net.Uri
+
 /**
  * Sealed class representing all screens in the ZeroID app
  */
@@ -15,6 +17,11 @@ sealed class Screen(val route: String) {
     object ProofGeneration : Screen("proof_generation")
 
     /**
+     * Display the generated proof and public signals
+     */
+    object ProofDisplay : Screen("proof_display")
+
+    /**
      * Face scan screen - authenticates the user
      */
     object FaceScan : Screen("face_scan")
@@ -27,9 +34,10 @@ sealed class Screen(val route: String) {
     /**
      * Verification result screen - displays the result of a verification
      */
-    object VerificationResult : Screen("verification_result/{isSuccess}") {
-        fun createRoute(isSuccess: Boolean): String {
-            return "verification_result/$isSuccess"
+    object VerificationResult : Screen("verification_result/{isSuccess}/{message}") {
+        fun createRoute(isSuccess: Boolean, message: String): String {
+            val encodedMessage = Uri.encode(message)
+            return "verification_result/$isSuccess/$encodedMessage"
         }
     }
 
@@ -41,6 +49,7 @@ sealed class Screen(val route: String) {
             return listOf(
                 Home.route,
                 ProofGeneration.route,
+                ProofDisplay.route,
                 FaceScan.route,
                 QRScanner.route,
                 VerificationResult.route

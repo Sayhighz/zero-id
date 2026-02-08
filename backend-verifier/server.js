@@ -102,6 +102,8 @@ app.post('/api/verify-direct', async (req, res) => {
             // ในวงจร age_salary_check:
             // publicSignals[0] มักจะเป็นผลลัพธ์ (1 = ผ่านเงื่อนไขทั้งหมด, 0 = ไม่ผ่าน)
             const isQualified = publicSignals[0] === "1";
+
+            console.log("Direct Verification Result:", isQualified ? "Passed" : "Failed");
             
             res.json({ 
                 success: true, 

@@ -7,7 +7,7 @@ data class UserProfile(
     val fullName: String = "Nonthee Panatuek",
     val birthDay: Int = 1,
     val birthMonth: Int = 2,
-    val birthYear: Int = 1990,
+    val birthYear: Int = 2004,
     val address: String = "เลขที่ xx/xx ",
     val idNumber: String = "1100000000000",
     val phoneNumber: String = "0900000000",
