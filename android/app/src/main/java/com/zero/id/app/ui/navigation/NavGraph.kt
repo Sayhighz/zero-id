@@ -38,6 +38,7 @@ import com.zero.id.app.network.RetrofitClient
 import com.zero.id.app.network.VerificationRequest
 import com.zero.id.app.ui.screens.face.FaceScanScreen
 import com.zero.id.app.ui.screens.home.HomeScreen
+import com.zero.id.app.ui.screens.home.HomeViewModel
 import com.zero.id.app.ui.screens.proof.ProofGenerationScreen
 import com.zero.id.app.ui.screens.proof.ProofGenerationViewModel
 import com.zero.id.app.ui.screens.proof.ProofGenerationViewModelFactory
@@ -55,6 +56,9 @@ fun NavGraph(
 ) {
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
+    
+    // Shared HomeViewModel to allow QR scanner to update challenge state
+    val homeViewModel: HomeViewModel = viewModel()
 
     NavHost(
         navController = navController,
@@ -73,34 +77,54 @@ fun NavGraph(
                         try {
                             val verificationRequest = Gson().fromJson(it, VerificationRequest::class.java)
                             val response = RetrofitClient.instance.verify(verificationRequest)
-                            Log.d("Verification", "Response: $response")
-                            if (!response.isSuccessful) {
-                                Log.e("Verification", "Verification failed: ${response.errorBody()?.string()}")
-                            }
-                            val isSuccess = response.isSuccessful && response.body()?.success == true
-                            navController.navigate(Screen.VerificationResult.createRoute(isSuccess)) {
-                                popUpTo(Screen.Home.route)
+                            if (response.isSuccessful && response.body()?.success == true) {
+                                navController.navigate(Screen.VerificationResult.createRoute(true))
+                            } else {
+                                navController.navigate(Screen.VerificationResult.createRoute(false))
                             }
                         } catch (e: Exception) {
-                            Log.e("Verification", "Error during verification", e)
-                            navController.navigate(Screen.VerificationResult.createRoute(false)) {
-                                popUpTo(Screen.Home.route)
-                            }
+                            navController.navigate(Screen.VerificationResult.createRoute(false))
                         }
                     }
                 },
                 onNavigateToFaceScan = {
                     navController.navigate(Screen.FaceScan.route)
-                }
+                },
+                viewModel = homeViewModel
             )
         }
 
+        composable(route = Screen.QRScanner.route) { 
+            QRScannerScreen { scannedContent ->
+                if (scannedContent.startsWith("http")) {
+                    homeViewModel.fetchChallengeFromUrl(scannedContent)
+                    navController.popBackStack() // Go back to Home to show the challenge dialog
+                } else {
+                    coroutineScope.launch {
+                        try {
+                            val verificationRequest = Gson().fromJson(scannedContent, VerificationRequest::class.java)
+                            val response = RetrofitClient.instance.verify(verificationRequest)
+                            val isSuccess = response.isSuccessful && response.body()?.success == true
+                            navController.navigate(Screen.VerificationResult.createRoute(isSuccess)) {
+                                popUpTo(Screen.Home.route)
+                            }
+                        } catch (e: Exception) {
+                            navController.navigate(Screen.VerificationResult.createRoute(false)) {
+                                popUpTo(Screen.Home.route)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // ... Rest of the composables (FaceScan, ProofGeneration, VerificationResult) remain same
         composable(route = Screen.FaceScan.route) {
             FaceScanScreen(
                 onBack = { navController.popBackStack() },
-                onRetry = { /* Logic for retry */ },
-                onUseFingerprint = { /* Logic for fingerprint */ },
-                onUsePassword = { /* Logic for password */ }
+                onRetry = { /* Logic */ },
+                onUseFingerprint = { /* Logic */ },
+                onUsePassword = { /* Logic */ }
             )
         }
 
@@ -146,16 +170,11 @@ fun NavGraph(
                         coroutineScope.launch {
                             try {
                                 val response = RetrofitClient.instance.verify(it)
-                                Log.d("Verification", "Response: $response")
-                                if (!response.isSuccessful) {
-                                    Log.e("Verification", "Verification failed: ${response.errorBody()?.string()}")
-                                }
                                 val isSuccess = response.isSuccessful && response.body()?.success == true
                                 navController.navigate(Screen.VerificationResult.createRoute(isSuccess)) {
                                     popUpTo(Screen.Home.route)
                                 }
                             } catch (e: Exception) {
-                                Log.e("Verification", "Error during verification", e)
                                 navController.navigate(Screen.VerificationResult.createRoute(false)) {
                                     popUpTo(Screen.Home.route)
                                 }
@@ -169,30 +188,6 @@ fun NavGraph(
                     CircularProgressIndicator(modifier = Modifier.size(64.dp))
                     Spacer(modifier = Modifier.height(24.dp))
                     Text("Initializing proof generator...")
-                }
-            }
-        }
-
-        composable(route = Screen.QRScanner.route) { 
-            QRScannerScreen { 
-                coroutineScope.launch {
-                    try {
-                        val verificationRequest = Gson().fromJson(it, VerificationRequest::class.java)
-                        val response = RetrofitClient.instance.verify(verificationRequest)
-                        Log.d("Verification", "Response: $response")
-                        if (!response.isSuccessful) {
-                            Log.e("Verification", "Verification failed: ${response.errorBody()?.string()}")
-                        }
-                        val isSuccess = response.isSuccessful && response.body()?.success == true
-                        navController.navigate(Screen.VerificationResult.createRoute(isSuccess)) {
-                            popUpTo(Screen.Home.route)
-                        }
-                    } catch (e: Exception) {
-                        Log.e("Verification", "Error during verification", e)
-                        navController.navigate(Screen.VerificationResult.createRoute(false)) {
-                            popUpTo(Screen.Home.route)
-                        }
-                    }
                 }
             }
         }

@@ -51,6 +51,7 @@ fun HomeScreen(
     val context = LocalContext.current
     val userProfile = ProfileStorage(context).getProfile()
     var showQrSourceDialog by remember { mutableStateOf(false) }
+    var showVerifyOptionsDialog by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
     val challengeResponse by viewModel.challengeResponse.collectAsState()
 
@@ -66,8 +67,12 @@ fun HomeScreen(
                     val scanner = BarcodeScanning.getClient(options)
                     scanner.process(inputImage)
                         .addOnSuccessListener { barcodes ->
-                            barcodes.firstOrNull()?.rawValue?.let {
-                                onVerifyFromJson(it)
+                            barcodes.firstOrNull()?.rawValue?.let { scannedContent ->
+                                if (scannedContent.startsWith("http")) {
+                                    viewModel.fetchChallengeFromUrl(scannedContent)
+                                } else {
+                                    onVerifyFromJson(scannedContent)
+                                }
                             }
                         }
                 } catch (e: IOException) {
@@ -265,7 +270,7 @@ fun HomeScreen(
 
         // Main Action Button
         Button(
-            onClick = { viewModel.generateChallenge() },
+            onClick = { showVerifyOptionsDialog = true },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(64.dp)
@@ -306,6 +311,35 @@ fun HomeScreen(
         )
     }
 
+    if (showVerifyOptionsDialog) {
+        AlertDialog(
+            onDismissRequest = { showVerifyOptionsDialog = false },
+            title = { Text("เลือกวิธีรับข้อมูล", color = WalletTextPrimary) },
+            text = { Text("คุณต้องการรับข้อกำหนดจากระบบ หรือสแกน QR Code เพื่อรับข้อกำหนด?", color = WalletTextSecondary) },
+            containerColor = WalletSurface,
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showVerifyOptionsDialog = false
+                        viewModel.generateChallenge()
+                    }
+                ) {
+                    Text("ระบบ (API)", color = WalletPrimary)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showVerifyOptionsDialog = false
+                        showQrSourceDialog = true
+                    }
+                ) {
+                    Text("สแกน QR Code", color = WalletPrimary)
+                }
+            }
+        )
+    }
+
     if (showQrSourceDialog) {
         AlertDialog(
             onDismissRequest = { showQrSourceDialog = false },
@@ -336,12 +370,19 @@ fun HomeScreen(
     }
 
     challengeResponse?.let {
-        ChallengeDetailsDialog(challenge = it, onDismiss = { viewModel.clearChallenge() })
+        ChallengeDetailsDialog(
+            challenge = it, 
+            onDismiss = { viewModel.clearChallenge() },
+            onConfirm = {
+                viewModel.clearChallenge()
+                onNavigateToProofGeneration()
+            }
+        )
     }
 }
 
 @Composable
-fun ChallengeDetailsDialog(challenge: ChallengeResponse, onDismiss: () -> Unit) {
+fun ChallengeDetailsDialog(challenge: ChallengeResponse, onDismiss: () -> Unit, onConfirm: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(challenge.verifierName, color = WalletTextPrimary) },
@@ -355,8 +396,13 @@ fun ChallengeDetailsDialog(challenge: ChallengeResponse, onDismiss: () -> Unit) 
             }
         },
         confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text("สร้าง Proof", color = WalletPrimary)
+            }
+        },
+        dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("ตกลง", color = WalletPrimary)
+                Text("ยกเลิก", color = WalletTextSecondary)
             }
         },
         containerColor = WalletSurface

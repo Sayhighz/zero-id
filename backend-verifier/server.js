@@ -81,6 +81,42 @@ app.post('/api/verify-profile', async (req, res) => {
         res.status(500).json({ success: false, error: "Verification process failed", detail: error.message });
     }
 });
+
+/**
+ * 🚀 Endpoint สำหรับตรวจสอบทันทีโดยไม่ต้องมี requestId
+ * ใช้สำหรับหน้าจอที่ต้องการผลลัพธ์ Pass/Fail ทันทีในแอป
+ */
+app.post('/api/verify-direct', async (req, res) => {
+    try {
+        const { proof, publicSignals } = req.body;
+
+        // ตรวจสอบความครบถ้วนของข้อมูล
+        if (!proof || !publicSignals) {
+            return res.status(400).json({ success: false, message: "Missing proof or signals" });
+        }
+
+        // ตรวจสอบความถูกต้องทางคณิตศาสตร์ด้วย vkey
+        const isValid = await snarkjs.groth16.verify(vkey, publicSignals, proof);
+
+        if (isValid) {
+            // ในวงจร age_salary_check:
+            // publicSignals[0] มักจะเป็นผลลัพธ์ (1 = ผ่านเงื่อนไขทั้งหมด, 0 = ไม่ผ่าน)
+            const isQualified = publicSignals[0] === "1";
+            
+            res.json({ 
+                success: true, 
+                isQualified: isQualified,
+                message: isQualified ? "Verification Passed" : "Verification Failed (Criteria not met)"
+            });
+        } else {
+            res.status(401).json({ success: false, message: "Invalid Mathematical Proof" });
+        }
+    } catch (error) {
+        console.error("Verification Error:", error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 /**
  * 🇹🇭 Thai Citizen ID Verify
  */
@@ -108,7 +144,6 @@ app.get("/api/generate-challenge", (req, res) => {
     const requestId = uuidv4(); // สร้าง ID สุ่มไม่ให้ซ้ำกัน
     
     const challenge = {
-        requestId: requestId,
         verifierName: "ZeroID Bank",
         minAge: 20,
         minSalary: 15000,
@@ -117,12 +152,7 @@ app.get("/api/generate-challenge", (req, res) => {
         callbackUrl: `http://localhost:3000/api/verify-callback` 
     };
 
-    // บันทึกสถานะเริ่มต้นเป็น PENDING
-    verificationRequests[requestId] = {
-        ...challenge,
-        status: "PENDING",
-        result: null
-    };
+
 
     res.json(challenge);
 });

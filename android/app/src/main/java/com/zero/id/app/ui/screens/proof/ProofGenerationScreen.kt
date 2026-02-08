@@ -1,25 +1,35 @@
 package com.zero.id.app.ui.screens.proof
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zero.id.app.network.VerificationRequest
-import com.zero.id.app.ui.theme.ZeroIDTheme
+import com.zero.id.app.ui.theme.WalletBackground
+import com.zero.id.app.ui.theme.WalletPrimary
+import com.zero.id.app.ui.theme.WalletSurface
+import com.zero.id.app.ui.theme.WalletTextPrimary
+import com.zero.id.app.ui.theme.WalletTextSecondary
 
-/**
- * Proof generation screen
- * Input form for birth year and minimum age
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProofGenerationScreen(
@@ -31,48 +41,39 @@ fun ProofGenerationScreen(
     val birthYear by viewModel.birthYear.collectAsState()
     val minAge by viewModel.minAge.collectAsState()
 
-    // Handle state changes
-    LaunchedEffect(state) {
-        when (val currentState = state) {
-            is ProofGenerationState.Success -> {
-                onVerificationRequest(currentState.verificationRequest)
-                viewModel.resetState()
-            }
-            is ProofGenerationState.Error -> {
-                // Error will be shown in the UI, don't navigate
-            }
-            else -> {}
-        }
-    }
-
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Generate Proof") },
+                title = { Text("สร้างหลักฐาน (ZK Proof)") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Back"
-                        )
+                        Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Back")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
+                    containerColor = WalletBackground,
+                    titleContentColor = WalletTextPrimary,
+                    navigationIconContentColor = WalletTextPrimary
                 )
             )
-        }
+        },
+        containerColor = WalletBackground
     ) { paddingValues ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            when (state) {
+            when (val currentState = state) {
                 is ProofGenerationState.Loading -> {
                     LoadingContent()
+                }
+                is ProofGenerationState.Success -> {
+                    ProofSuccessContent(
+                        proofJson = currentState.proofJson,
+                        publicSignalsJson = currentState.publicSignalsJson,
+                        onVerify = { onVerificationRequest(currentState.verificationRequest) }
+                    )
                 }
                 else -> {
                     InputFormContent(
@@ -90,9 +91,92 @@ fun ProofGenerationScreen(
     }
 }
 
-/**
- * Loading state content
- */
+@Composable
+private fun ProofSuccessContent(
+    proofJson: String,
+    publicSignalsJson: String,
+    onVerify: () -> Unit
+) {
+    val scrollState = rememberScrollState()
+    val clipboardManager = LocalClipboardManager.current
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp)
+            .verticalScroll(scrollState),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = "สร้างหลักฐานสำเร็จ!",
+            color = WalletPrimary,
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Public Signals Section
+        JsonCodeBlock(
+            title = "Public Signals (public.json)",
+            json = publicSignalsJson,
+            onCopy = { clipboardManager.setText(AnnotatedString(publicSignalsJson)) }
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Proof Section
+        JsonCodeBlock(
+            title = "Proof (proof.json)",
+            json = proofJson,
+            onCopy = { clipboardManager.setText(AnnotatedString(proofJson)) }
+        )
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        Button(
+            onClick = onVerify,
+            modifier = Modifier.fillMaxWidth().height(56.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = WalletPrimary)
+        ) {
+            Text("ส่งให้ผู้ตรวจสอบ (Verify)", color = Color.Black, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+    }
+}
+
+@Composable
+fun JsonCodeBlock(title: String, json: String, onCopy: () -> Unit) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(text = title, color = WalletTextSecondary, fontSize = 14.sp)
+            IconButton(onClick = onCopy) {
+                Icon(Icons.Default.ContentCopy, contentDescription = "Copy", tint = WalletPrimary, modifier = Modifier.size(20.dp))
+            }
+        }
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(WalletSurface)
+                .padding(16.dp)
+        ) {
+            Text(
+                text = json,
+                color = WalletTextPrimary,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 12.sp
+            )
+        }
+    }
+}
+
 @Composable
 private fun LoadingContent() {
     Column(
@@ -100,32 +184,13 @@ private fun LoadingContent() {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        CircularProgressIndicator(
-            modifier = Modifier.size(64.dp),
-            color = MaterialTheme.colorScheme.primary
-        )
-
+        CircularProgressIndicator(modifier = Modifier.size(64.dp), color = WalletPrimary)
         Spacer(modifier = Modifier.height(24.dp))
-
-        Text(
-            text = "Generating zero-knowledge proof...",
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            text = "This may take a few seconds",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
-        )
+        Text(text = "กำลังคำนวณหลักฐาน (ZK Proof)...", color = WalletTextPrimary)
+        Text(text = "ขั้นตอนนี้ทำบนมือถือของคุณเท่านั้น", color = WalletTextSecondary, fontSize = 12.sp)
     }
 }
 
-/**
- * Input form content
- */
 @Composable
 private fun InputFormContent(
     birthYear: String,
@@ -137,124 +202,66 @@ private fun InputFormContent(
     isLoading: Boolean
 ) {
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
+        modifier = Modifier.fillMaxSize().padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(modifier = Modifier.height(32.dp))
-
+        Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "Enter your details to generate an age verification proof",
+            text = "ระบุข้อมูลเพื่อสร้างหลักฐานอายุ",
+            color = WalletTextPrimary,
             style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onBackground,
             textAlign = TextAlign.Center
         )
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Birth Year Input
         OutlinedTextField(
             value = birthYear,
             onValueChange = onBirthYearChange,
-            label = { Text("Birth Year") },
-            placeholder = { Text("e.g., 1990") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            singleLine = true,
+            label = { Text("ปีเกิด (ค.ศ.)") },
+            colors = OutlinedTextFieldDefaults.colors(
+                unfocusedTextColor = WalletTextPrimary,
+                focusedTextColor = WalletTextPrimary,
+                unfocusedBorderColor = WalletSurface,
+                focusedBorderColor = WalletPrimary
+            ),
             modifier = Modifier.fillMaxWidth(),
-            enabled = !isLoading
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Minimum Age Input
         OutlinedTextField(
             value = minAge,
             onValueChange = onMinAgeChange,
-            label = { Text("Minimum Age") },
-            placeholder = { Text("e.g., 18") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            singleLine = true,
+            label = { Text("อายุขั้นต่ำที่ต้องการพิสูจน์") },
+            colors = OutlinedTextFieldDefaults.colors(
+                unfocusedTextColor = WalletTextPrimary,
+                focusedTextColor = WalletTextPrimary,
+                unfocusedBorderColor = WalletSurface,
+                focusedBorderColor = WalletPrimary
+            ),
             modifier = Modifier.fillMaxWidth(),
-            enabled = !isLoading
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
         )
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        // Privacy Notice Card
-        OutlinedCard(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.outlinedCardColors(
-                containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f)
-            )
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp)
-            ) {
-                Text(
-                    text = "Privacy Notice",
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.secondary
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = "The proof is generated entirely on your device. Your birth year never leaves your device and cannot be derived from the proof.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            }
-        }
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Error message
         if (errorMessage != null) {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.errorContainer
-                )
-            ) {
-                Text(
-                    text = errorMessage,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onErrorContainer,
-                    modifier = Modifier.padding(16.dp)
-                )
-            }
-
+            Text(text = errorMessage, color = MaterialTheme.colorScheme.error, fontSize = 14.sp)
             Spacer(modifier = Modifier.height(16.dp))
         }
 
         Spacer(modifier = Modifier.weight(1f))
 
-        // Generate Button
         Button(
             onClick = onGenerateProof,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp),
+            modifier = Modifier.fillMaxWidth().height(64.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = WalletPrimary),
             enabled = !isLoading && birthYear.isNotEmpty() && minAge.isNotEmpty()
         ) {
-            Text(
-                text = "Generate Proof",
-                style = MaterialTheme.typography.titleMedium
-            )
+            Text(text = "สร้างหลักฐาน", color = Color.Black, fontSize = 18.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
         }
-
-        Spacer(modifier = Modifier.height(16.dp))
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun ProofGenerationScreenPreview() {
-    ZeroIDTheme {
-        ProofGenerationScreen(
-            onNavigateBack = {},
-            onVerificationRequest = {}
-        )
     }
 }
