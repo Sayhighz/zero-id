@@ -95,13 +95,17 @@ class ZKProver(private val context: Context) {
     /**
      * Generate a zero-knowledge proof
      * @param birthYear User's birth year
+     * @param salary User's salary
      * @param minAge Minimum age requirement to prove
+     * @param minSalary Minimum salary requirement to prove
      * @param currentYear Current year
      * @return ProofResult containing the proof or error
      */
     suspend fun generateProof(
         birthYear: Int,
+        salary: Int,
         minAge: Int,
+        minSalary: Int,
         currentYear: Int
     ): ProofResult {
         // Check initialization
@@ -109,30 +113,24 @@ class ZKProver(private val context: Context) {
             throw ZKProverException.NotInitialized()
         }
 
-        // Input validation with specific error messages
+        // Input validation
         if (birthYear < 1900) {
             throw ZKProverException.InvalidInput("birthYear", "must be >= 1900, got $birthYear")
         }
         if (birthYear > currentYear) {
-            throw ZKProverException.InvalidInput("birthYear", "cannot be in the future (current year: $currentYear)")
-        }
-        if (minAge < 0) {
-            throw ZKProverException.InvalidInput("minAge", "must be >= 0, got $minAge")
-        }
-        if (minAge > 150) {
-            throw ZKProverException.InvalidInput("minAge", "must be <= 150, got $minAge")
+            throw ZKProverException.InvalidInput("birthYear", "cannot be in the future")
         }
 
         val startTime = System.currentTimeMillis()
-        Log.d(TAG, "Starting proof generation for birthYear=$birthYear, minAge=$minAge, currentYear=$currentYear")
+        Log.d(TAG, "Starting proof generation for birthYear=$birthYear, salary=$salary, minAge=$minAge, minSalary=$minSalary")
 
         return try {
-            withTimeout(10_000) { // 10 second timeout
+            withTimeout(15_000) { // Increased timeout to 15s
                 suspendCancellableCoroutine { continuation ->
                     val javascript = """
                         (async function() {
                             try {
-                                const result = await window.generateProof($birthYear, $minAge, $currentYear);
+                                const result = await window.generateProof($birthYear, $salary, $minAge, $minSalary, $currentYear);
                                 // Result will be sent via Android.onProofGenerated
                             } catch (error) {
                                 console.error('Error calling generateProof:', error);
@@ -152,14 +150,12 @@ class ZKProver(private val context: Context) {
                     webView?.evaluateJavascript(javascript) { result ->
                         val elapsedTime = System.currentTimeMillis() - startTime
                         Log.d(TAG, "JavaScript evaluation completed in ${elapsedTime}ms")
-                        // Actual result comes via WebAppInterface.onProofGenerated
                     }
                 }
             }
         } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
-            val elapsedTime = System.currentTimeMillis() - startTime
-            Log.e(TAG, "Proof generation timed out after ${elapsedTime}ms")
-            throw ZKProverException.ProofGenerationTimeout(10)
+            Log.e(TAG, "Proof generation timed out")
+            throw ZKProverException.ProofGenerationTimeout(15)
         } finally {
             val totalTime = System.currentTimeMillis() - startTime
             Log.d(TAG, "Proof generation completed in ${totalTime}ms")
@@ -232,20 +228,11 @@ class ZKProver(private val context: Context) {
  * Result of a proof generation operation
  */
 sealed class ProofResult {
-    /**
-     * Proof generation succeeded
-     * @param proof The zero-knowledge proof
-     * @param publicSignals Public signals from the circuit (e.g., age verification result)
-     */
     data class Success(
         val proof: Map<String, Any>,
         val publicSignals: List<String>
     ) : ProofResult()
 
-    /**
-     * Proof generation failed
-     * @param message Error message
-     */
     data class Error(val message: String) : ProofResult()
 }
 
@@ -253,23 +240,8 @@ sealed class ProofResult {
  * Custom exceptions for ZKProver operations
  */
 sealed class ZKProverException(message: String) : Exception(message) {
-    /**
-     * ZKProver was not initialized before use
-     */
     class NotInitialized : ZKProverException("ZKProver not initialized. Call initialize() first.")
-
-    /**
-     * WASM file failed to load
-     */
     class WasmLoadFailed(reason: String) : ZKProverException("Failed to load WASM: $reason")
-
-    /**
-     * Proof generation exceeded timeout limit
-     */
     class ProofGenerationTimeout(seconds: Int) : ZKProverException("Proof generation timed out after $seconds seconds")
-
-    /**
-     * Invalid input parameters provided
-     */
     class InvalidInput(field: String, reason: String) : ZKProverException("Invalid $field: $reason")
 }

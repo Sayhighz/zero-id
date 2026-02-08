@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardType
@@ -24,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zero.id.app.network.VerificationRequest
+import com.zero.id.app.security.ProfileStorage
 import com.zero.id.app.ui.theme.WalletBackground
 import com.zero.id.app.ui.theme.WalletPrimary
 import com.zero.id.app.ui.theme.WalletSurface
@@ -38,8 +40,8 @@ fun ProofGenerationScreen(
     viewModel: ProofGenerationViewModel = viewModel()
 ) {
     val state by viewModel.state.collectAsState()
-    val birthYear by viewModel.birthYear.collectAsState()
-    val minAge by viewModel.minAge.collectAsState()
+    val context = LocalContext.current
+    val userProfile = remember { ProfileStorage(context).getProfile() }
 
     Scaffold(
         topBar = {
@@ -77,11 +79,13 @@ fun ProofGenerationScreen(
                 }
                 else -> {
                     InputFormContent(
-                        birthYear = birthYear,
-                        minAge = minAge,
-                        onBirthYearChange = viewModel::updateBirthYear,
-                        onMinAgeChange = viewModel::updateMinAge,
-                        onGenerateProof = viewModel::generateProof,
+                        birthYear = userProfile.birthYear.toString(),
+                        minAge = "", // Auto-filled from verifier
+                        minSalary = "", // Auto-filled from verifier
+                        onBirthYearChange = {},
+                        onMinAgeChange = {},
+                        onMinSalaryChange = {},
+                        onGenerateProof = { viewModel.generateProof(userProfile.birthYear, userProfile.salary) },
                         errorMessage = (state as? ProofGenerationState.Error)?.message,
                         isLoading = state is ProofGenerationState.Loading
                     )
@@ -116,7 +120,6 @@ private fun ProofSuccessContent(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Public Signals Section
         JsonCodeBlock(
             title = "Public Signals (public.json)",
             json = publicSignalsJson,
@@ -125,7 +128,6 @@ private fun ProofSuccessContent(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Proof Section
         JsonCodeBlock(
             title = "Proof (proof.json)",
             json = proofJson,
@@ -195,19 +197,22 @@ private fun LoadingContent() {
 private fun InputFormContent(
     birthYear: String,
     minAge: String,
+    minSalary: String,
     onBirthYearChange: (String) -> Unit,
     onMinAgeChange: (String) -> Unit,
+    onMinSalaryChange: (String) -> Unit,
     onGenerateProof: () -> Unit,
     errorMessage: String?,
     isLoading: Boolean
 ) {
+    val scrollState = rememberScrollState()
     Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
+        modifier = Modifier.fillMaxSize().padding(24.dp).verticalScroll(scrollState),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "ระบุข้อมูลเพื่อสร้างหลักฐานอายุ",
+            text = "ระบุข้อมูลเพื่อสร้างหลักฐาน ZK",
             color = WalletTextPrimary,
             style = MaterialTheme.typography.titleMedium,
             textAlign = TextAlign.Center
@@ -226,7 +231,8 @@ private fun InputFormContent(
                 focusedBorderColor = WalletPrimary
             ),
             modifier = Modifier.fillMaxWidth(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            readOnly = true // ดึงจาก Profile อัตโนมัติ
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -242,7 +248,25 @@ private fun InputFormContent(
                 focusedBorderColor = WalletPrimary
             ),
             modifier = Modifier.fillMaxWidth(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            enabled = false
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        OutlinedTextField(
+            value = minSalary,
+            onValueChange = onMinSalaryChange,
+            label = { Text("รายได้ขั้นต่ำที่ต้องการพิสูจน์") },
+            colors = OutlinedTextFieldDefaults.colors(
+                unfocusedTextColor = WalletTextPrimary,
+                focusedTextColor = WalletTextPrimary,
+                unfocusedBorderColor = WalletSurface,
+                focusedBorderColor = WalletPrimary
+            ),
+            modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            enabled = false
         )
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -259,7 +283,7 @@ private fun InputFormContent(
             modifier = Modifier.fillMaxWidth().height(64.dp),
             shape = RoundedCornerShape(16.dp),
             colors = ButtonDefaults.buttonColors(containerColor = WalletPrimary),
-            enabled = !isLoading && birthYear.isNotEmpty() && minAge.isNotEmpty()
+            enabled = !isLoading
         ) {
             Text(text = "สร้างหลักฐาน", color = Color.Black, fontSize = 18.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
         }

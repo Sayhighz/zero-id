@@ -1,7 +1,7 @@
 {
-  "minAge": "20",
+  "minAge": "18",
   "minSalary": "15000",
   "currentYear": "2026",
-  "birthYear": "2000",
-  "salary": "25000"
+  "birthYear": "2004",
+  "salary": "14000"
 }

@@ -4,6 +4,7 @@ import com.google.gson.annotations.SerializedName
 
 data class VerificationResponse(
     @SerializedName("success") val success: Boolean,
+    @SerializedName("isQualified") val isQualified: Boolean? = null,
     @SerializedName("message") val message: String,
     @SerializedName("details") val details: VerificationDetails?
 )

@@ -29,7 +29,10 @@ fun VerificationResultScreen(isSuccess: Boolean, message: String, onDone: () -> 
     val successColor = Color(0xFF24D18E)
     val errorColor = Color(0xFFE04A4A)
 
-    val primaryColor = if (isSuccess) successColor else errorColor
+    // ปรับการแสดงผลตามข้อความ "Criteria not met" หรือ "Verification Failed"
+    val isActuallySuccess = isSuccess && !message.contains("Criteria not met", ignoreCase = true) && !message.contains("Failed", ignoreCase = true)
+
+    val primaryColor = if (isActuallySuccess) successColor else errorColor
 
     Column(
         modifier = Modifier
@@ -52,11 +55,23 @@ fun VerificationResultScreen(isSuccess: Boolean, message: String, onDone: () -> 
         Spacer(modifier = Modifier.height(24.dp))
 
         Text(
-            text = if (isSuccess) "ยืนยันตัวตนสำเร็จ" else "ยืนยันตัวตนไม่สำเร็จ",
+            text = if (isActuallySuccess) "ยืนยันตัวตนสำเร็จ" else "ยืนยันตัวตนไม่สำเร็จ",
             color = Color.White,
             fontSize = 28.sp,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center
         )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        if (!isActuallySuccess) {
+            Text(
+                text = "คุณสมบัติของคุณไม่ตรงตามที่กำหนดไว้\nกรุณาตรวจสอบข้อมูลหรือลองใหม่อีกครั้ง",
+                color = Color.Gray,
+                fontSize = 14.sp,
+                textAlign = TextAlign.Center
+            )
+        }
 
         Spacer(modifier = Modifier.height(48.dp))
 
@@ -69,7 +84,7 @@ fun VerificationResultScreen(isSuccess: Boolean, message: String, onDone: () -> 
             colors = ButtonDefaults.buttonColors(containerColor = primaryColor)
         ) {
             Text(
-                text = if (isSuccess) "ดำเนินการต่อ" else "ลองอีกครั้ง",
+                text = if (isActuallySuccess) "ดำเนินการต่อ" else "กลับหน้าหลัก",
                 color = Color.Black,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold
@@ -86,10 +101,18 @@ fun VerificationSuccessPreview() {
     }
 }
 
+@Preview(showBackground = true, name = "Criteria Not Met")
+@Composable
+fun VerificationFailedCriteriaPreview() {
+    ZeroIDTheme {
+        VerificationResultScreen(isSuccess = true, message = "Verification Failed (Criteria not met)") { }
+    }
+}
+
 @Preview(showBackground = true, name = "Failure")
 @Composable
 fun VerificationFailurePreview() {
     ZeroIDTheme {
-        VerificationResultScreen(isSuccess = false, message = "Verification Failed") { }
+        VerificationResultScreen(isSuccess = false, message = "Network Error") { }
     }
 }

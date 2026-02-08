@@ -61,6 +61,9 @@ dependencies {
 
     // Biometric authentication
     implementation(libs.androidx.biometric)
+    
+    // GSON for JSON processing
+    implementation(libs.gson)
 
     testImplementation(libs.junit)
 

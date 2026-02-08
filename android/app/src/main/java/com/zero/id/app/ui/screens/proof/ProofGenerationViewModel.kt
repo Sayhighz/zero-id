@@ -5,12 +5,9 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
-import com.zero.id.app.ServiceLocator
 import com.zero.id.app.network.Proof
-import com.zero.id.app.network.RetrofitClient
 import com.zero.id.app.network.VerificationRequest
-import com.zero.id.app.zkp.ProofResult
-import com.zero.id.app.zkp.ZKProver
+import com.zero.id.library.android.ZkpProver
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -35,67 +32,20 @@ sealed class ProofGenerationState {
  */
 class ProofGenerationViewModel(
     application: Application,
-    private val zkProver: ZKProver? = null
+    private val minAge: Int?,
+    private val minSalary: Int?,
+    private val currentYear: Int
 ) : AndroidViewModel(application) {
 
     private val _state = MutableStateFlow<ProofGenerationState>(ProofGenerationState.Idle)
     val state: StateFlow<ProofGenerationState> = _state.asStateFlow()
 
-    private val _birthYear = MutableStateFlow("")
-    val birthYear: StateFlow<String> = _birthYear.asStateFlow()
-
-    private val _minAge = MutableStateFlow("")
-    val minAge: StateFlow<String> = _minAge.asStateFlow()
-
-    private val currentYear = 2026
-    private val profileStorage = ServiceLocator.provideProfileStorage(application)
+    private val zkpProver = ZkpProver(application)
     private val gson = GsonBuilder().setPrettyPrinting().create()
 
-    init {
-        loadUserProfile()
-    }
-
-    private fun loadUserProfile() {
-        val profile = profileStorage.getProfile()
-        if (profile.birthYear > 0) {
-            _birthYear.value = profile.birthYear.toString()
-        }
-    }
-
-    fun updateBirthYear(year: String) {
-        if (year.isEmpty() || (year.all { it.isDigit() } && year.length <= 4)) {
-            _birthYear.value = year
-        }
-    }
-
-    fun updateMinAge(age: String) {
-        if (age.isEmpty() || (age.all { it.isDigit() } && age.length <= 3)) {
-            _minAge.value = age
-        }
-    }
-
-    fun validateInputs(): String? {
-        val birthYearInt = _birthYear.value.toIntOrNull()
-        val minAgeInt = _minAge.value.toIntOrNull()
-
-        return when {
-            _birthYear.value.isEmpty() -> "Please enter your birth year"
-            _minAge.value.isEmpty() -> "Please enter minimum age"
-            birthYearInt == null -> "Invalid birth year"
-            minAgeInt == null -> "Invalid minimum age"
-            else -> null
-        }
-    }
-
-    fun generateProof() {
-        val validationError = validateInputs()
-        if (validationError != null) {
-            _state.value = ProofGenerationState.Error(validationError)
-            return
-        }
-
-        if (zkProver == null) {
-            _state.value = ProofGenerationState.Error("ZK Prover not initialized")
+    fun generateProof(birthYear: Int, salary: Int) {
+        if (minAge == null || minSalary == null) {
+            _state.value = ProofGenerationState.Error("Missing requirements from verifier.")
             return
         }
 
@@ -103,30 +53,32 @@ class ProofGenerationViewModel(
 
         viewModelScope.launch {
             try {
-                val result = zkProver.generateProof(
-                    birthYear = _birthYear.value.toInt(),
-                    minAge = _minAge.value.toInt(),
-                    currentYear = currentYear
+                val input = mapOf(
+                    "birthYear" to birthYear.toString(),
+                    "salary" to salary.toString(),
+                    "minAge" to minAge.toString(),
+                    "minSalary" to minSalary.toString(),
+                    "currentYear" to currentYear.toString()
                 )
 
-                when (result) {
-                    is ProofResult.Success -> {
-                        val verificationRequest = VerificationRequest(
-                            proof = Gson().fromJson(Gson().toJson(result.proof), Proof::class.java),
-                            publicSignals = result.publicSignals
-                        )
-                        _state.value = ProofGenerationState.Success(
-                            verificationRequest = verificationRequest,
-                            proofJson = gson.toJson(result.proof),
-                            publicSignalsJson = gson.toJson(result.publicSignals)
-                        )
-                    }
-                    is ProofResult.Error -> {
-                        _state.value = ProofGenerationState.Error(result.message)
-                    }
-                }
+                val (proofJson, publicSignalsJson) = zkpProver.generateProof(input)
+
+                val proof = Gson().fromJson(proofJson, Proof::class.java)
+                val publicSignals = Gson().fromJson(publicSignalsJson, List::class.java)
+
+                val verificationRequest = VerificationRequest(
+                    proof = proof,
+                    publicSignals = publicSignals.map { it.toString() }
+                )
+
+                _state.value = ProofGenerationState.Success(
+                    verificationRequest = verificationRequest,
+                    proofJson = gson.toJson(proof),
+                    publicSignalsJson = gson.toJson(publicSignals)
+                )
+
             } catch (e: Exception) {
-                _state.value = ProofGenerationState.Error(e.message ?: "Error")
+                _state.value = ProofGenerationState.Error(e.message ?: "An unknown error occurred")
             }
         }
     }
