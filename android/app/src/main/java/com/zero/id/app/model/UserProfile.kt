@@ -11,7 +11,7 @@ data class UserProfile(
     val address: String = "เลขที่ xx/xx ",
     val idNumber: String = "1100000000000",
     val phoneNumber: String = "0900000000",
-    val salary: Int = 16000
+    val salary: Int = 21000
 ) {
     /**
      * Helper to get full date of birth as string

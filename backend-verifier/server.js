@@ -143,21 +143,26 @@ app.post("/api/verify-citizen", async (req, res) => {
 });
 
 app.get("/api/generate-challenge", (req, res) => {
-    const requestId = uuidv4(); // สร้าง ID สุ่มไม่ให้ซ้ำกัน
-    
+    const requestId = uuidv4();
+
+    const {
+        verifierName,
+        minAge,
+        minSalary
+    } = req.query;
+
     const challenge = {
-        verifierName: "ZeroID Bank",
-        minAge: 20,
-        minSalary: 15000,
-        currentYear: 2026,
-        // สำคัญ: ต้องเป็น IP เครื่องคุณเพื่อให้ Android ยิงหาเจอ
-        callbackUrl: `http://localhost:3000/api/verify-callback` 
+        requestId,
+        verifierName: verifierName || "Unknown Verifier",
+        minAge: Number(minAge) || 0,
+        minSalary: Number(minSalary) || 0,
+        currentYear: new Date().getFullYear(),
+        callbackUrl: "http://localhost:3000/api/verify-callback"
     };
-
-
 
     res.json(challenge);
 });
+
 
 app.post('/api/verify-callback', async (req, res) => {
     try {

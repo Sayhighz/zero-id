@@ -1,6 +1,7 @@
 package com.zero.id.app.ui.screens.home
 
 import android.net.Uri
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -55,6 +56,7 @@ fun HomeScreen(
     viewModel: HomeViewModel = viewModel()
 ) {
     val context = LocalContext.current
+    val TAG = "HomeScreen"
     val userProfile = ProfileStorage(context).getProfile()
     var showQrSourceDialog by remember { mutableStateOf(false) }
     var showVerifyOptionsDialog by remember { mutableStateOf(false) }
@@ -76,16 +78,22 @@ fun HomeScreen(
                     val scanner = BarcodeScanning.getClient(options)
                     scanner.process(inputImage)
                         .addOnSuccessListener { barcodes ->
-                            barcodes.firstOrNull()?.rawValue?.let { scannedContent ->
-                                if (scannedContent.startsWith("http")) {
-                                    viewModel.fetchChallengeFromUrl(scannedContent)
+                            val scannedContent = barcodes.firstOrNull()?.rawValue
+                            Log.d(TAG, "QR Scanned from Gallery: $scannedContent")
+                            
+                            scannedContent?.let { content ->
+                                if (content.contains("http", ignoreCase = true)) {
+                                    val urlOnly = content.substringAfter("http", content).let {
+                                        if (it == content) it else "http$it"
+                                    }.trim()
+                                    viewModel.fetchChallengeFromUrl(urlOnly)
                                 } else {
-                                    onVerifyFromJson(scannedContent)
+                                    onVerifyFromJson(content)
                                 }
                             }
                         }
                 } catch (e: IOException) {
-                    e.printStackTrace()
+                    Log.e(TAG, "Error scanning image from gallery", e)
                 }
             }
         }
@@ -423,6 +431,7 @@ fun HomeScreen(
                 TextButton(
                     onClick = {
                         showQrSourceDialog = false
+                        Log.d(TAG, "Opening Camera Scanner")
                         onNavigateToQrScanner()
                     }
                 ) {
@@ -433,6 +442,7 @@ fun HomeScreen(
                 TextButton(
                     onClick = {
                         showQrSourceDialog = false
+                        Log.d(TAG, "Opening Gallery Picker")
                         pickImageLauncher.launch("image/*")
                     }
                 ) {
@@ -447,7 +457,6 @@ fun HomeScreen(
             challenge = it, 
             onDismiss = { viewModel.clearChallenge() },
             onConfirm = {
-                // Do NOT clear challenge here, we need it in the next screen
                 onNavigateToProofGeneration()
             }
         )
@@ -458,14 +467,14 @@ fun HomeScreen(
 fun ChallengeDetailsDialog(challenge: ChallengeResponse, onDismiss: () -> Unit, onConfirm: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(challenge.verifierName, color = WalletTextPrimary) },
+        title = { Text(challenge.verifierName ?: "ผู้ตรวจสอบไม่ระบุชื่อ", color = WalletTextPrimary) },
         text = {
             Column {
                 Text("ต้องการข้อมูลดังนี้:", color = WalletTextSecondary)
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(" - อายุขั้นต่ำ: ${challenge.minAge}")
-                Text(" - เงินเดือนขั้นต่ำ: ${challenge.minSalary}")
-                Text(" - ปีปัจจุบัน: ${challenge.currentYear}")
+                Text(" - อายุขั้นต่ำ: ${challenge.minAge ?: "-"}")
+                Text(" - เงินเดือนขั้นต่ำ: ${challenge.minSalary ?: "-"}")
+                Text(" - ปีปัจจุบัน: ${challenge.currentYear ?: "-"}")
             }
         },
         confirmButton = {

@@ -89,7 +89,7 @@ fun NavGraph(
                 application = application,
                 minAge = challenge?.minAge,
                 minSalary = challenge?.minSalary,
-                currentYear = challenge?.currentYear ?: 2026
+                currentYear = challenge?.currentYear ?: "2026"
             )
             val proofViewModel: ProofGenerationViewModel = viewModel(factory = factory)
             

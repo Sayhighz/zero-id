@@ -12,6 +12,9 @@ import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import com.google.gson.Gson
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.util.concurrent.TimeUnit
 
 class HomeViewModel : ViewModel() {
 
@@ -27,7 +30,11 @@ class HomeViewModel : ViewModel() {
     private val _lastPublicSignalsJson = MutableStateFlow<String?>(null)
     val lastPublicSignalsJson: StateFlow<String?> = _lastPublicSignalsJson
 
-    private val client = OkHttpClient()
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(20, TimeUnit.SECONDS)
+        .readTimeout(20, TimeUnit.SECONDS)
+        .writeTimeout(20, TimeUnit.SECONDS)
+        .build()
     private val gson = Gson()
 
     fun setLastProofData(request: VerificationRequest, proofJson: String, publicSignalsJson: String) {
@@ -51,25 +58,33 @@ class HomeViewModel : ViewModel() {
     fun fetchChallengeFromUrl(url: String) {
         viewModelScope.launch {
             try {
-                val finalUrl = url.replace("localhost", "10.0.2.2")
+                // 1. Replace localhost with 192.168.1.10 for emulator
+                // 2. Handle spaces in URL (replace with %20)
+                val finalUrl = url.replace("localhost", "192.168.1.10")
+                                  .replace(" ", "%20")
+
+                Log.d("HomeViewModel", "Fetching challenge from: $finalUrl")
+
                 val request = Request.Builder()
                     .url(finalUrl)
                     .build()
 
-                val response = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                val response = withContext(Dispatchers.IO) {
                     client.newCall(request).execute()
                 }
 
                 if (response.isSuccessful) {
                     val body = response.body?.string()
+                    Log.d("HomeViewModel", "Server response: $body")
+
                     val challenge = gson.fromJson(body, ChallengeResponse::class.java)
                     _challengeResponse.value = challenge
-                    Log.d("HomeViewModel", "Challenge fetched from URL: $challenge")
+                    Log.d("HomeViewModel", "Challenge fetched successfully: $challenge")
                 } else {
-                    Log.e("HomeViewModel", "Failed to fetch challenge: ${response.code}")
+                    Log.e("HomeViewModel", "Failed to fetch: ${response.code} ${response.message}")
                 }
             } catch (e: Exception) {
-                Log.e("HomeViewModel", "Error fetching challenge from URL", e)
+                Log.e("HomeViewModel", "Error fetching challenge", e)
             }
         }
     }

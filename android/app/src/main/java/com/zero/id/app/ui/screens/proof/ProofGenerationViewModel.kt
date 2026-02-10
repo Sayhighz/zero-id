@@ -32,9 +32,9 @@ sealed class ProofGenerationState {
  */
 class ProofGenerationViewModel(
     application: Application,
-    private val minAge: Int?,
-    private val minSalary: Int?,
-    private val currentYear: Int
+    private val minAge: String?,
+    private val minSalary: String?,
+    private val currentYear: String?
 ) : AndroidViewModel(application) {
 
     private val _state = MutableStateFlow<ProofGenerationState>(ProofGenerationState.Idle)
@@ -44,10 +44,9 @@ class ProofGenerationViewModel(
     private val gson = GsonBuilder().setPrettyPrinting().create()
 
     fun generateProof(birthYear: Int, salary: Int) {
-        if (minAge == null || minSalary == null) {
-            _state.value = ProofGenerationState.Error("Missing requirements from verifier.")
-            return
-        }
+        val mAge = minAge ?: "0"
+        val mSalary = minSalary ?: "0"
+        val cYear = currentYear ?: "2026"
 
         _state.value = ProofGenerationState.Loading
 
@@ -56,9 +55,9 @@ class ProofGenerationViewModel(
                 val input = mapOf(
                     "birthYear" to birthYear.toString(),
                     "salary" to salary.toString(),
-                    "minAge" to minAge.toString(),
-                    "minSalary" to minSalary.toString(),
-                    "currentYear" to currentYear.toString()
+                    "minAge" to mAge,
+                    "minSalary" to mSalary,
+                    "currentYear" to cYear
                 )
 
                 val (proofJson, publicSignalsJson) = zkpProver.generateProof(input)

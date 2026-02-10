@@ -6,9 +6,9 @@ import androidx.lifecycle.ViewModelProvider
 
 class ProofGenerationViewModelFactory(
     private val application: Application,
-    private val minAge: Int?,
-    private val minSalary: Int?,
-    private val currentYear: Int
+    private val minAge: String?,
+    private val minSalary: String?,
+    private val currentYear: String?
 ) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(ProofGenerationViewModel::class.java)) {
