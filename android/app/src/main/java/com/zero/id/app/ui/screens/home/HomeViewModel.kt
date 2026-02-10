@@ -14,7 +14,7 @@ import okhttp3.Request
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.util.concurrent.TimeUnit
+import java.net.URI
 
 class HomeViewModel : ViewModel() {
 
@@ -30,11 +30,7 @@ class HomeViewModel : ViewModel() {
     private val _lastPublicSignalsJson = MutableStateFlow<String?>(null)
     val lastPublicSignalsJson: StateFlow<String?> = _lastPublicSignalsJson
 
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(20, TimeUnit.SECONDS)
-        .readTimeout(20, TimeUnit.SECONDS)
-        .writeTimeout(20, TimeUnit.SECONDS)
-        .build()
+    private val client = OkHttpClient()
     private val gson = Gson()
 
     fun setLastProofData(request: VerificationRequest, proofJson: String, publicSignalsJson: String) {
@@ -58,9 +54,14 @@ class HomeViewModel : ViewModel() {
     fun fetchChallengeFromUrl(url: String) {
         viewModelScope.launch {
             try {
-                // 1. Replace localhost with 192.168.1.10 for emulator
-                // 2. Handle spaces in URL (replace with %20)
-                val finalUrl = url.replace("localhost", "192.168.1.10")
+                // Use the host from RetrofitInstance for local development
+                val host = try {
+                    URI(RetrofitInstance.BASE_URL).host
+                } catch (e: Exception) {
+                    "10.0.2.2"
+                }
+
+                val finalUrl = url.replace("localhost", host ?: "10.0.2.2")
                                   .replace(" ", "%20")
 
                 Log.d("HomeViewModel", "Fetching challenge from: $finalUrl")

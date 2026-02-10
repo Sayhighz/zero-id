@@ -6,7 +6,8 @@ import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 
 object RetrofitClient {
-    private const val BASE_URL = "http://10.0.2.2:3000" // Use 10.0.2.2 for Android emulator
+    // ใช้ BASE_URL ตัวเดียวกันกับที่แก้ไขไปก่อนหน้า
+    private const val BASE_URL = RetrofitInstance.BASE_URL
 
     private val okHttpClient = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
